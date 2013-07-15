@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Task.Models where
+module Task.Models ( Task(..) ) where
+
 import Prelude hiding (lookup)
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as L8
@@ -30,7 +31,7 @@ data Task = Task {
   taskName :: String,
   taskMembers :: [UserName],
   taskCompleted :: Bool
-} deriving Show
+} deriving (Show, Eq)
 
 instance DCRecord Task where
   fromDocument doc = do

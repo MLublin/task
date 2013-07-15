@@ -23,7 +23,7 @@ import Data.Maybe
 import Data.List.Split
 
 import Task.Policy
---import Task.Models
+import Task.Models
 import Task.Views
 
 server :: Application
@@ -38,8 +38,7 @@ server = mkRouter $ do
     let task = merge ["members" -: (members :: [String])] taskdoc 
     alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "tasks"
     let memDocs = filter (\u -> ("user" `at` u) `elem` members) alldocs
-    --map (addTask (fromDocument task) ) memDocs
-    liftLIO $ withTaskPolicyModule $ addTasks memDocs task
+    liftLIO $ withTaskPolicyModule $ addTasks memDocs $ fromDocument task
     respond $ redirectTo "/"   
 
 addTasks memDocs task = do
@@ -86,37 +85,3 @@ getTasks user = withTaskPolicyModule $ do
                       m <- lookup  "members" $ toDocument (head taskList)
                       slist (tail taskList) (("<li class=\"status\" id=\"" ++ n ++ "\">" ++ (n ++ " members: " ++ (show m) ++ "</li>") ++ str))
 
-data Task = Task {
-  taskId :: Maybe ObjectId,
-  taskName :: String,
-  taskMembers :: [UserName],
-  taskCompleted :: Bool
-} deriving (Show, Eq)
-
-instance DCRecord Task where
-  fromDocument doc = do
-    let tid = lookupObjId "_id" doc
-    name <- lookup "name" doc
-    members <- lookup "members" doc
-    completed <- lookup "completed" doc
-    return Task { taskId = tid
-                , taskName = name
-                , taskMembers = members
-                , taskCompleted = completed }
-
-  toDocument t =
-    [ "_id"  -: taskId t
-    , "name" -: taskName t
-    , "members" -: taskMembers t
-    , "completed" -: taskCompleted t ]
-
-  recordCollection _ = "tasks"
-
-
-lookupObjId :: Monad m => FieldName -> HsonDocument -> m ObjectId
-lookupObjId n d = case lookup n d of
-    Just i -> return (i :: ObjectId)
-    _ -> case do { s <- lookup n d; maybeRead s } of
-          Just i -> return i
-          _ -> fail $ "lookupObjId: cannot extract id from " ++ show n
-  where maybeRead = fmap fst . listToMaybe . reads
