@@ -38,9 +38,11 @@ server = mkRouter $ do
     let task = merge ["members" -: (members :: [String])] taskdoc 
     alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "tasks"
     let memDocs = filter (\u -> ("user" `at` u) `elem` members) alldocs
-    liftLIO $ withTaskPolicyModule $ addTasks memDocs $ fromDocument task
+    ntask <- fromDocument task
+    liftLIO $ withTaskPolicyModule $ addTasks memDocs ntask
     respond $ redirectTo "/"   
 
+addTasks :: [HsonDocument] -> Task -> DBAction ()
 addTasks memDocs task = do
   if memDocs == []
     then return ()
@@ -82,6 +84,6 @@ getTasks user = withTaskPolicyModule $ do
                     then str
                     else do
                       n <-  lookup "name" $ toDocument (head taskList)
-                      m <- lookup  "members" $ toDocument (head taskList)
+                      m <- (lookup  "members" $ toDocument (head taskList)) :: [UserName]
                       slist (tail taskList) (("<li class=\"status\" id=\"" ++ n ++ "\">" ++ (n ++ " members: " ++ (show m) ++ "</li>") ++ str))
 
