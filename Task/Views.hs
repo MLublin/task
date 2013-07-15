@@ -38,10 +38,18 @@ displayPage user =  "<html> \
    \     <input type=\"hidden\" name=\"completed\" value=\"False\">\
    \     <button type=\"submit\">SEND</button>\
    \   </form> </div> \
-   \   <form action=\"/coworkers\" method=\"post\"> \
-   \     <label for=\"coworkers\"> Add coworker </label> \
-   \     <input type=\"text\" name=\"coworkers[]\"> \
-   \     <button type=\"submit\">Add coworker</button> \ 
-   \   </form> \
+   \   <iframe id=\"peopleframe\" src=\"/people\"></iframe> \
    \ </body> \
    \ </html>"
+
+showUsers :: [UserName] -> String
+showUsers users = "<html> \
+   \ <ol>" ++ loopUsers users [] ++ " </ol> </html>"
+   where  loopUsers :: [UserName] -> String -> String
+          loopUsers users str = 
+            if users == [] then str 
+            else do
+              let user = head users
+              loopUsers (tail users) (str ++ "<li>" ++ T.unpack user ++ "</li>")   
+
+

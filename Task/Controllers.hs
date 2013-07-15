@@ -29,30 +29,43 @@ import Task.Views
 server :: Application
 server = mkRouter $ do
 
-  get "/" $ withUserOrDoAuth $ \user -> respond $ okHtml $ L8.pack $ displayPage user
+  get "/" $ withUserOrDoAuth $ \user -> do
+    musr <- liftLIO $ withTaskPolicyModule $ findOne $ select ["user" -: user] "users"
+    case musr of
+      Nothing -> do
+        let doc = ["user" -: user, "tasks" -: ([] :: [ObjectId])] :: HsonDocument
+        liftLIO $ withTaskPolicyModule $ insert "users" doc
+        respond $ okHtml $ L8.pack $ displayPage user
+      _       ->  respond $ okHtml $ L8.pack $ displayPage user
    
 
-  post "/task" $ do   
+  get "/people" $ do
+    people <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
+    let users =  map (\doc -> "user" `at` doc) people
+    respond $ okHtml $ L8.pack $ showUsers users    
+
+  post "/task" $ trace "Post/Task" $ do   
     taskdoc <- include ["name", "members", "completed"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
-    let members = splitOn (" " :: String) ("members" `at` taskdoc)
-    let task = merge ["members" -: (members :: [String])] taskdoc 
-    alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "tasks"
-    let memDocs = filter (\u -> ("user" `at` u) `elem` members) alldocs
-    ntask <- fromDocument task
-    liftLIO $ withTaskPolicyModule $ addTasks memDocs ntask
+    let members = trace "line 49" $ splitOn (" " :: String) ("members" `at` taskdoc)
+    let task = trace "line 50" $ merge ["members" -: (members :: [String])] taskdoc 
+    tId <- liftLIO $ withTaskPolicyModule $ insert "tasks" task
+    alldocs <- liftLIO $ withTaskPolicyModule $ trace "line 51" $ findAll $ select [] "users"
+    let memDocs = trace (show alldocs) $ filter (\u -> ("user" `at` u) `elem` members) alldocs
+    --ntask <- trace "line 54" $ fromDocument task
+    liftLIO $ withTaskPolicyModule $ trace "addTasks" $ addTasks memDocs tId
     respond $ redirectTo "/"   
 
-addTasks :: [HsonDocument] -> Task -> DBAction ()
-addTasks memDocs task = do
+addTasks :: [HsonDocument] -> ObjectId -> DBAction ()
+addTasks memDocs taskId = do
   if memDocs == []
     then return ()
     else do
       let doc = head memDocs
       let curTasks = "tasks" `at` doc
-      let newTasks = task:curTasks
+      let newTasks = taskId:curTasks
       let newDoc = merge ["tasks" -: newTasks] doc
-      save "tasks" newDoc
-      addTasks (tail memDocs) task
+      save "users" newDoc
+      trace (show $ length memDocs) $ addTasks (tail memDocs) taskId
 
 findAll :: Query -> DBAction [HsonDocument]
 findAll q = do
@@ -66,18 +79,19 @@ findAll q = do
                         doc <- liftLIO $ unlabel ldoc
                         getAll cur (list ++ [doc])
 
+{-
 getTasks :: UserName -> DC String
 getTasks user = withTaskPolicyModule $ do
-  musr <- findOne $ select ["user" -: user] "tasks"
+  musr <- findOne $ select ["user" -: user] "users"
   case musr of 
     Nothing -> do
       let doc = ["user" -: user, "tasks" -: ([] :: [Task]), "coworkers" -: ([] :: [UserName])] :: HsonDocument
-      insert "tasks" doc
+      insert "users" doc
       return ""
     (Just usr) -> trace "Just" $ do 
-      us <- findOne $ select ["user" -: user] "tasks"
+      us <- findOne $ select ["user" -: user] "users"
       u <- liftLIO $ unlabel $ fromJust us
-      let tasks = filter (\t -> not $ taskCompleted t) ("tasks" `at` u)
+      let tasks = filter (\t -> (taskCompleted t) == "False") ("tasks" `at` u)
       trace "slist" $ return $ slist tasks ""
               where slist :: [Task] -> String -> String
                     slist taskList str = if (taskList == [])
@@ -86,4 +100,5 @@ getTasks user = withTaskPolicyModule $ do
                       n <-  lookup "name" $ toDocument (head taskList)
                       m <- (lookup  "members" $ toDocument (head taskList)) :: [UserName]
                       slist (tail taskList) (("<li class=\"status\" id=\"" ++ n ++ "\">" ++ (n ++ " members: " ++ (show m) ++ "</li>") ++ str))
+-}
 

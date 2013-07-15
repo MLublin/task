@@ -32,16 +32,16 @@ data Task = Task {
   taskId :: Maybe ObjectId,
   taskName :: String,
   taskMembers :: [UserName],
-  taskCompleted :: Bool
+  taskCompleted :: String
 } deriving (Show, Eq, Typeable)
 
 instance DCRecord Task where
   fromDocument doc = do
     let tid = lookupObjIdh "_id" doc
-    name <- lookup "name" doc
-    members <- lookup "members" doc
-    completed <- lookup "completed" doc
-    return Task { taskId = tid
+    name <- trace "41" $ lookup "name" doc
+    members <- trace "42" $ lookup "members" doc
+    completed <- trace "43" $ lookup "completed" doc
+    trace "returning" $ return Task { taskId = tid
                 , taskName = name
                 , taskMembers = members
                 , taskCompleted = completed }

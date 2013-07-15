@@ -22,7 +22,7 @@ instance PolicyModule TaskPolicyModule where
         readers ==> unrestricted 
         writers ==> unrestricted
         admins ==> this
-      collection "tasks" $ do
+      collection "users" $ do
         access $ do
           readers ==> unrestricted
           writers ==> unrestricted
@@ -33,6 +33,16 @@ instance PolicyModule TaskPolicyModule where
           readers ==> unrestricted
           writers ==> unrestricted
         field "user" key
+      collection "tasks" $ do
+        access $ do
+          readers ==> unrestricted
+          writers ==> unrestricted
+        clearance $ do
+          secrecy ==> this
+          integrity ==> unrestricted
+        document $ \_ -> do
+          readers ==> unrestricted
+          writers ==> unrestricted
     return $ TaskPolicyModuleTCB priv
         where this = privDesc priv
 
