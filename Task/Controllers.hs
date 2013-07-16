@@ -30,29 +30,28 @@ server :: Application
 server = mkRouter $ do
 
   get "/" $ withUserOrDoAuth $ \user -> do
-    musr <- liftLIO $ withTaskPolicyModule $ findOne $ select ["user" -: user] "users"
+    musr <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
     case musr of
-      Nothing -> do
-        let newuser = User { userName = user
-                           , userTasks = [] }
-        let doc = toDocument newuser
-        liftLIO $ withTaskPolicyModule $ insert "users" doc
-        respond $ okHtml $ L8.pack $ displayPage user []
+      Nothing -> trace "line 35" $ do 
+        respond $ okHtml $ L8.pack $ newUser user
       Just usr -> do
         unlabeled <- liftLIO $ unlabel usr
         u <- fromDocument unlabeled -- return of type User
         let tids = userTasks u -- type ObjectId
-        let tasks = map extractTasks tids
+        mtasks <- liftLIO $ withTaskPolicyModule $ mapM (findBy "tasks" "_id") tids 
         --tdocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "tasks"
         --let alltasks = filter (extractTasks tids) tdocs
+        let tasks = map fromJust mtasks
         respond $ okHtml $ L8.pack $ displayPage user tasks
-        where extractTasks :: ObjectId -> Task
-              extractTasks tid = do
-                task <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: tid] "tasks"
 
+  post "/people" $ do
+    userdoc <- include ["name", "tasks"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
+    liftLIO $ withTaskPolicyModule $ trace "line 49" $ insert "users" userdoc  
+    respond $ redirectTo "/" 
+ 
   get "/people" $ do
     people <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
-    let users =  map (\doc -> "user" `at` doc) people
+    let users =  map (\u -> "name" `at` u) people
     respond $ okHtml $ L8.pack $ showUsers users    
 
   post "/task" $ trace "Post/Task" $ do   
@@ -61,11 +60,21 @@ server = mkRouter $ do
     let task = trace "line 50" $ merge ["members" -: (members :: [String])] taskdoc 
     tId <- liftLIO $ withTaskPolicyModule $ insert "tasks" task
     alldocs <- liftLIO $ withTaskPolicyModule $ trace "line 51" $ findAll $ select [] "users"
-    let memDocs = trace (show alldocs) $ filter (\u -> ("user" `at` u) `elem` members) alldocs
+    let memDocs = trace (show alldocs) $ filter (\u -> ("name" `at` u) `elem` members) alldocs
     --ntask <- trace "line 54" $ fromDocument task
     liftLIO $ withTaskPolicyModule $ trace "addTasks" $ addTasks memDocs tId
     respond $ redirectTo "/"   
-
+{-
+loop :: [ObjectId] -> [Task] -> [Task]
+loop tids tasks =  
+    if tids == []     
+      then tasks   
+      else do
+        mtask <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: (head tids)] "tasks"
+        taskdoc <- unlabel $ fromJust $ mtask 
+        task <- fromDocument taskdoc
+        loop (tail tids) (task:tasks)
+-}
 addTasks :: [HsonDocument] -> ObjectId -> DBAction ()
 addTasks memDocs taskId = do
   if memDocs == []
@@ -89,6 +98,7 @@ findAll q = do
                 Just ldoc -> do
                         doc <- liftLIO $ unlabel ldoc
                         getAll cur (list ++ [doc])
+
 
 {-
 getTasks :: UserName -> DC String

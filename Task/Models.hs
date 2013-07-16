@@ -97,7 +97,7 @@ data User = User {
 } deriving (Show, Eq, Typeable)
 
 instance DCRecord User where
-  fromDocument doc = do
+  fromDocument doc = trace "fromDoc user" $ do
     let tid = lookupObjIdh "_id" doc
     name <- lookup "name" doc
     let tasks = lookupObjIdh "tasks" doc
@@ -105,7 +105,7 @@ instance DCRecord User where
                 , userName = name
                 , userTasks = tasks }
 
-  toDocument t =
+  toDocument t = trace "toDoc user" $
     [ "_id"  -: userId t
     , "name" -: userName t
     , "tasks" -: userTasks t ]

@@ -60,4 +60,16 @@ listTasks tasks str =
     then str
     else listTasks (tail tasks) (str ++ "<li>" ++ (taskName $ head tasks) ++ "</li>")
 
+newUser :: UserName -> String
+newUser user = "<html> \ 
+   \ <head> <script src=\"http://code.jquery.com/jquery-latest.min.js\"></script><script src=\"/static/social.js\"></script> \
+   \ <link href=\"/static/css/stylesheet.css\" type=\"text/css\" rel=\"stylesheet\"/><title> Social Network </title></head> \
+   \ <body> \
+   \   <form id=\"people\" action=\"/people\" method=\"post\"> \
+   \   <input type=\"hidden\" name=\"name\" value=\"" ++ (T.unpack user) ++ "\"> \
+   \   <input type=\"hidden\" name=\"tasks\" value=\"\"> \
+   \   </form> \
+   \ <script> document.getElementById(\"people\").submit(); </script> \ 
+   \ </body> </html>" -- ++ displayPage user []
+
 
