@@ -1,5 +1,5 @@
 {-# LANGUAGE OverloadedStrings, DeriveDataTypeable #-}
-module Task.Models ( Task(..) ) where
+module Task.Models ( Task(..), User(..) ) where
 
 import Prelude hiding (lookup)
 import qualified Data.ByteString.Lazy as L
@@ -24,24 +24,22 @@ import Data.Maybe
 import Data.Typeable
 
 import Task.Policy
-import Task.Views
-
 
 
 data Task = Task {
   taskId :: Maybe ObjectId,
   taskName :: String,
   taskMembers :: [UserName],
-  taskCompleted :: String
+  taskCompleted :: Bool
 } deriving (Show, Eq, Typeable)
 
 instance DCRecord Task where
   fromDocument doc = do
     let tid = lookupObjIdh "_id" doc
-    name <- trace "41" $ lookup "name" doc
-    members <- trace "42" $ lookup "members" doc
-    completed <- trace "43" $ lookup "completed" doc
-    trace "returning" $ return Task { taskId = tid
+    name <- lookup "name" doc
+    members <- lookup "members" doc
+    completed <- lookup "completed" doc
+    return Task { taskId = tid
                 , taskName = name
                 , taskMembers = members
                 , taskCompleted = completed }
@@ -91,6 +89,60 @@ instance BsonVal Task where
     , "name" -: taskName t
     , "members" -: taskMembers t
     , "completed" -: taskCompleted t ]
+
+data User = User {
+  userId :: Maybe ObjectId,
+  userName :: UserName,
+  userTasks :: [ObjectId]
+} deriving (Show, Eq, Typeable)
+
+instance DCRecord User where
+  fromDocument doc = do
+    let tid = lookupObjIdh "_id" doc
+    name <- lookup "name" doc
+    let tasks = lookupObjIdh "tasks" doc
+    return User { userId = tid
+                , userName = name
+                , userTasks = tasks }
+
+  toDocument t =
+    [ "_id"  -: userId t
+    , "name" -: userName t
+    , "tasks" -: userTasks t ]
+
+  recordCollection _ = "tasks"
+
+instance HsonVal User where
+  fromHsonValue (HsonValue (BsonDoc doc)) = do
+    let tid = lookupObjIdb "_id" doc
+    name <- lookup "name" doc
+    let tasks = lookupObjIdb "tasks" doc
+    return User { userId = tid
+                , userName = name
+                , userTasks = tasks }
+  
+  fromHsonValue _ = fail "fromHsonValue error"  
+
+  toHsonValue t = HsonValue $ BsonDoc 
+    [ "_id"  -: userId t
+    , "name" -: userName t
+    , "tasks" -: userTasks t ]
+
+instance BsonVal User where
+  fromBsonValue (BsonDoc doc) = do
+    let tid = lookupObjIdb "_id" doc
+    name <- lookup "name" doc
+    let tasks = lookupObjIdb "tasks" doc
+    return User { userId = tid
+                , userName = name
+                , userTasks = tasks }
+  
+  fromBsonValue _ = fail "fromBsonValue error"  
+
+  toBsonValue t = BsonDoc 
+    [ "_id"  -: userId t
+    , "name" -: userName t
+    , "tasks" -: userTasks t ]
 
 
 lookupObjIdh :: Monad m => FieldName -> HsonDocument -> m ObjectId

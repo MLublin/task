@@ -33,11 +33,22 @@ server = mkRouter $ do
     musr <- liftLIO $ withTaskPolicyModule $ findOne $ select ["user" -: user] "users"
     case musr of
       Nothing -> do
-        let doc = ["user" -: user, "tasks" -: ([] :: [ObjectId])] :: HsonDocument
+        let newuser = User { userName = user
+                           , userTasks = [] }
+        let doc = toDocument newuser
         liftLIO $ withTaskPolicyModule $ insert "users" doc
-        respond $ okHtml $ L8.pack $ displayPage user
-      _       ->  respond $ okHtml $ L8.pack $ displayPage user
-   
+        respond $ okHtml $ L8.pack $ displayPage user []
+      Just usr -> do
+        unlabeled <- liftLIO $ unlabel usr
+        u <- fromDocument unlabeled -- return of type User
+        let tids = userTasks u -- type ObjectId
+        let tasks = map extractTasks tids
+        --tdocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "tasks"
+        --let alltasks = filter (extractTasks tids) tdocs
+        respond $ okHtml $ L8.pack $ displayPage user tasks
+        where extractTasks :: ObjectId -> Task
+              extractTasks tid = do
+                task <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: tid] "tasks"
 
   get "/people" $ do
     people <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"

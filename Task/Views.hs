@@ -20,9 +20,11 @@ import LIO
 import LIO.DCLabel
 import Data.Maybe
 
+import Task.Models
 
-displayPage :: UserName -> String
-displayPage user =  "<html> \
+
+displayPage :: UserName -> [Task] -> String
+displayPage user tasks =  "<html> \
    \ <head> <script src=\"http://code.jquery.com/jquery-latest.min.js\"></script><script src=\"/static/social.js\"></script> \
    \ <link href=\"/static/css/stylesheet.css\" type=\"text/css\" rel=\"stylesheet\"/><title> Social Network </title></head> \
    \ <body> \
@@ -37,8 +39,9 @@ displayPage user =  "<html> \
    \     <input type=\"text\" name=\"members\">\
    \     <input type=\"hidden\" name=\"completed\" value=\"False\">\
    \     <button type=\"submit\">SEND</button>\
-   \   </form> </div> \
-   \   <iframe id=\"peopleframe\" src=\"/people\"></iframe> \
+   \   </form> </div> <ul>"
+   ++ listTasks tasks "" ++ "</ul>" ++
+   "   <iframe id=\"peopleframe\" src=\"/people\"></iframe> \
    \ </body> \
    \ </html>"
 
@@ -51,5 +54,10 @@ showUsers users = "<html> \
             else do
               let user = head users
               loopUsers (tail users) (str ++ "<li>" ++ T.unpack user ++ "</li>")   
+
+listTasks tasks str =
+  if tasks == []
+    then str
+    else listTasks (tail tasks) (str ++ "<li>" ++ (taskName $ head tasks) ++ "</li>")
 
 
