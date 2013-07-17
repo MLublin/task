@@ -42,7 +42,7 @@ instance DCRecord Task where
     return Task { taskId = tid
                 , taskName = name
                 , taskMembers = members
-                , taskCompleted = completed }
+                , taskCompleted = read completed }
 
   toDocument t =
     [ "_id"  -: taskId t
@@ -61,7 +61,7 @@ instance HsonVal Task where
     return Task { taskId = tid
                 , taskName = name
                 , taskMembers = members 
-                , taskCompleted = completed }
+                , taskCompleted = read completed }
   
   fromHsonValue _ = fail "fromHsonValue error"  
 
@@ -80,7 +80,7 @@ instance BsonVal Task where
     return Task { taskId = tid
                 , taskName = name
                 , taskMembers = members 
-                , taskCompleted = completed }
+                , taskCompleted = read completed }
   
   fromBsonValue _ = fail "fromHsonValue error"  
 
@@ -98,17 +98,17 @@ data User = User {
 
 instance DCRecord User where
   fromDocument doc = trace "fromDoc user" $ do
-    let tid = lookupObjIdh "_id" doc
+    let uid = lookupObjIdh "_id" doc
     name <- lookup "name" doc
     let tasks = at "tasks" doc
-    return User { userId = tid
+    return User { userId = uid
                 , userName = name
                 , userTasks = tasks }
 
-  toDocument t = trace "toDoc user" $
-    [ "_id"  -: userId t
-    , "name" -: userName t
-    , "tasks" -: userTasks t ]
+  toDocument u = trace "toDoc user" $
+    [ "_id"  -: userId u
+    , "name" -: userName u
+    , "tasks" -: userTasks u ]
 
   recordCollection _ = "tasks"
 
@@ -123,23 +123,25 @@ instance HsonVal User where
   
   fromHsonValue _ = fail "fromHsonValue error"  
 
-  toHsonValue t = HsonValue $ BsonDoc 
-    [ "_id"  -: userId t
-    , "name" -: userName t
-    , "tasks" -: userTasks t ]
+  toHsonValue u = HsonValue $ BsonDoc 
+    [ "_id"  -: userId u
+    , "name" -: userName u
+    , "tasks" -: userTasks u ]
 
 instance BsonVal User where
   fromBsonValue (BsonDoc doc) = do
     let tid = lookupObjIdb "_id" doc
     name <- lookup "name" doc
-    let tasks = lookupObjIdb "tasks" doc
+    otasks <- lookup "tasks" doc
+    let stasks = map show otasks
+    let tasks = map (\t -> read t :: ObjectId) otasks
     return User { userId = tid
                 , userName = name
                 , userTasks = tasks }
   
-  fromBsonValue _ = fail "fromBsonValue error"  
+  fromBsonValue _ = fail "fromBsonValue error"
 
-  toBsonValue t = BsonDoc 
+  toBsonValue t = BsonDoc
     [ "_id"  -: userId t
     , "name" -: userName t
     , "tasks" -: userTasks t ]
