@@ -37,14 +37,12 @@ server = mkRouter $ do
     musr <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
     case musr of
       Nothing -> trace "user not found" $ do
-        respond $ okHtml $ L8.pack $ trace "creating new user" $ newUser user
+        respond $ respondHtml "Tasks" $ trace "creating new user" $ newUser user
       Just usr -> trace "found user" $ do
         unlabeled <- liftLIO $ unlabel usr
-        u <- fromDocument unlabeled -- return of type User
-        let tids = userTasks u -- type ObjectId
+        u <- fromDocument unlabeled -- returns a User
+        let tids = userTasks u
         mtasks <- liftLIO $ withTaskPolicyModule $ mapM (findBy "tasks" "_id") tids 
-        --tdocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "tasks"
-        --let alltasks = filter (extractTasks tids) tdocs
         let tasks = map fromJust mtasks
         respond $ respondHtml "Tasks" $ displayPage user tasks
 
@@ -56,7 +54,7 @@ server = mkRouter $ do
   get "/people" $ do
     people <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
     let users =  map (\u -> "name" `at` u) people
-    respond $ okHtml $ L8.pack $ showUsers users    
+    respond $ respondHtml "Users" $ showUsers users    
 
   post "/task" $ trace "Post/Task" $ do   
     taskdoc <- include ["name", "members", "completed"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
