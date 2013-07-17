@@ -40,16 +40,21 @@ displayPage user tasks = do
   h1 ! class_ "top" ! id "name" $ toHtml $ T.unpack user
   div $ do
     h1 ! class_ "top" $ "Team Tasks"
-    p ! id "mytasks" $ "Where tasks would go"
   div $ do
+    h3 $ "Add a new task:"
     form ! id "taskform" ! action "/task" ! method "post" $ do
-      label ! for "name" $ "task name"
-      input ! type_ "text" ! name "name"
-      label ! for "members" $ "members"
-      input ! type_ "text" ! name "members"
+      p $ do
+        label ! for "name" $ "Task name: "
+        input ! type_ "text" ! name "name"
+      p $ do
+        label ! for "members" $ "Invite members"
+        input ! type_ "text" ! name "members"
       input ! type_ "hidden" ! name "completed" ! value "False"
-      button ! type_ "submit" $ "SEND"
-  ul $ trace ("Printing tasks: " ++ show tasks) $ forM_ tasks $ \task -> li $ toHtml $ taskName task
+      button ! type_ "submit" $ "Add Task"
+  div ! id "mytasks" $ do
+    h3 $ "My tasks"
+    ul $ trace ("Printing tasks: " ++ show tasks) $ forM_ tasks $ \task -> 
+      li $ toHtml $ taskName task
   iframe ! id "peopleframe" ! src "people" $ ""
 
 showUsers :: [UserName] -> Html
