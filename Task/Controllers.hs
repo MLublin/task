@@ -38,17 +38,18 @@ server = mkRouter $ do
     case musr of
       Nothing -> trace "user not found" $ do
         respond $ respondHtml "Tasks" $ trace "creating new user" $ newUser user
-      Just usr -> trace "found user" $ do
+      Just usr -> trace ("line 41 ") $ do
         unlabeled <- liftLIO $ unlabel usr
         u <- fromDocument unlabeled -- returns a User
-        let tids = userTasks u
-        mtasks <- liftLIO $ withTaskPolicyModule $ mapM (findBy "tasks" "_id") tids 
-        let tasks = map fromJust mtasks
+        let tids = trace ("Line 44 u : " ++ (show u)) $ userTasks u
+        mtasks <- liftLIO $ withTaskPolicyModule $ trace (show tids) $  mapM (findBy "tasks" "_id") tids 
+        let tasks = trace (show mtasks) $ map fromJust mtasks
         respond $ respondHtml "Tasks" $ displayPage user tasks
 
   post "/people" $ trace "post /people" $ do
     userdoc <- include ["name", "tasks"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
-    liftLIO $ withTaskPolicyModule $ trace "line 49" $ insert "users" userdoc  
+    let usrdoc = merge ["tasks" -:([] :: [ObjectId])] userdoc
+    liftLIO $ withTaskPolicyModule $ trace "line 49" $ insert "users" usrdoc  
     respond $ redirectTo "/" 
  
   get "/people" $ do

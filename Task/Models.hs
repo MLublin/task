@@ -100,7 +100,7 @@ instance DCRecord User where
   fromDocument doc = trace "fromDoc user" $ do
     let tid = lookupObjIdh "_id" doc
     name <- lookup "name" doc
-    let tasks = lookupObjIdh "tasks" doc
+    let tasks = at "tasks" doc
     return User { userId = tid
                 , userName = name
                 , userTasks = tasks }

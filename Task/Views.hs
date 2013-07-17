@@ -49,7 +49,7 @@ displayPage user tasks = do
       input ! type_ "text" ! name "members"
       input ! type_ "hidden" ! name "completed" ! value "False"
       button ! type_ "submit" $ "SEND"
-  ul $ forM_ tasks $ \task -> li $ toHtml $ taskName task
+  ul $ trace ("Printing tasks: " ++ show tasks) $ forM_ tasks $ \task -> li $ toHtml $ taskName task
   iframe ! id "peopleframe" ! src "people" $ ""
 
 showUsers :: [UserName] -> Html
@@ -58,12 +58,11 @@ showUsers users = do
   ul $ forM_ users $ \user -> li $ toHtml $ T.unpack user
 
 newUser :: UserName -> Html
-newUser user = do
+newUser user = trace "newUser" $ do
   form ! id "people" ! action "/people" ! method "post" $ do
     input ! type_ "hidden" ! name "name" ! value (toValue $ T.unpack user)
     input ! type_ "text" ! name "tasks[]" ! value ""
   script $ "document.getElementById('people').submit();"
-  displayPage user []
 
 stylesheet :: String -> Html
 stylesheet uri = link ! rel "stylesheet" ! type_ "text/css" ! href (toValue uri)

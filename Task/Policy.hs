@@ -43,6 +43,7 @@ instance PolicyModule TaskPolicyModule where
         document $ \_ -> do
           readers ==> unrestricted
           writers ==> unrestricted
+        field "_id" key
     return $ TaskPolicyModuleTCB priv
         where this = privDesc priv
 
