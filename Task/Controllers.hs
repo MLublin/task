@@ -21,6 +21,10 @@ import LIO
 import LIO.DCLabel
 import Data.Maybe
 import Data.List.Split
+import Text.Blaze.Renderer.Text
+import Text.Blaze.Html5 hiding (Tag, map, head, select)
+
+import qualified Web.Simple.Responses as W
 
 import Task.Policy
 import Task.Models
@@ -29,12 +33,12 @@ import Task.Views
 server :: Application
 server = mkRouter $ do
 
-  get "/" $ withUserOrDoAuth $ \user -> do
+  get "/" $ withUserOrDoAuth $ \user -> trace ("user logged in: " ++ T.unpack user) $ do
     musr <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
     case musr of
-      Nothing -> trace "line 35" $ do 
-        respond $ okHtml $ L8.pack $ newUser user
-      Just usr -> do
+      Nothing -> trace "user not found" $ do
+        respond $ okHtml $ L8.pack $ trace "creating new user" $ newUser user
+      Just usr -> trace "found user" $ do
         unlabeled <- liftLIO $ unlabel usr
         u <- fromDocument unlabeled -- return of type User
         let tids = userTasks u -- type ObjectId
@@ -42,9 +46,9 @@ server = mkRouter $ do
         --tdocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "tasks"
         --let alltasks = filter (extractTasks tids) tdocs
         let tasks = map fromJust mtasks
-        respond $ okHtml $ L8.pack $ displayPage user tasks
+        respond $ respondHtml "Tasks" $ displayPage user tasks
 
-  post "/people" $ do
+  post "/people" $ trace "post /people" $ do
     userdoc <- include ["name", "tasks"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
     liftLIO $ withTaskPolicyModule $ trace "line 49" $ insert "users" userdoc  
     respond $ redirectTo "/" 
@@ -56,27 +60,16 @@ server = mkRouter $ do
 
   post "/task" $ trace "Post/Task" $ do   
     taskdoc <- include ["name", "members", "completed"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
-    let members = trace "line 49" $ splitOn (" " :: String) ("members" `at` taskdoc)
-    let task = trace "line 50" $ merge ["members" -: (members :: [String])] taskdoc 
+    let members = trace "line 63" $ splitOn (" " :: String) ("members" `at` taskdoc)
+    let task = trace "line 64" $ merge ["members" -: (members :: [String])] taskdoc 
     tId <- liftLIO $ withTaskPolicyModule $ insert "tasks" task
-    alldocs <- liftLIO $ withTaskPolicyModule $ trace "line 51" $ findAll $ select [] "users"
+    alldocs <- liftLIO $ withTaskPolicyModule $ trace "line 66" $ findAll $ select [] "users"
     let memDocs = trace (show alldocs) $ filter (\u -> ("name" `at` u) `elem` members) alldocs
-    --ntask <- trace "line 54" $ fromDocument task
     liftLIO $ withTaskPolicyModule $ trace "addTasks" $ addTasks memDocs tId
     respond $ redirectTo "/"   
-{-
-loop :: [ObjectId] -> [Task] -> [Task]
-loop tids tasks =  
-    if tids == []     
-      then tasks   
-      else do
-        mtask <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: (head tids)] "tasks"
-        taskdoc <- unlabel $ fromJust $ mtask 
-        task <- fromDocument taskdoc
-        loop (tail tids) (task:tasks)
--}
+
 addTasks :: [HsonDocument] -> ObjectId -> DBAction ()
-addTasks memDocs taskId = do
+addTasks memDocs taskId = trace "addTasks called" $ do
   if memDocs == []
     then return ()
     else do
@@ -98,28 +91,4 @@ findAll q = do
                 Just ldoc -> do
                         doc <- liftLIO $ unlabel ldoc
                         getAll cur (list ++ [doc])
-
-
-{-
-getTasks :: UserName -> DC String
-getTasks user = withTaskPolicyModule $ do
-  musr <- findOne $ select ["user" -: user] "users"
-  case musr of 
-    Nothing -> do
-      let doc = ["user" -: user, "tasks" -: ([] :: [Task]), "coworkers" -: ([] :: [UserName])] :: HsonDocument
-      insert "users" doc
-      return ""
-    (Just usr) -> trace "Just" $ do 
-      us <- findOne $ select ["user" -: user] "users"
-      u <- liftLIO $ unlabel $ fromJust us
-      let tasks = filter (\t -> (taskCompleted t) == "False") ("tasks" `at` u)
-      trace "slist" $ return $ slist tasks ""
-              where slist :: [Task] -> String -> String
-                    slist taskList str = if (taskList == [])
-                    then str
-                    else do
-                      n <-  lookup "name" $ toDocument (head taskList)
-                      m <- (lookup  "members" $ toDocument (head taskList)) :: [UserName]
-                      slist (tail taskList) (("<li class=\"status\" id=\"" ++ n ++ "\">" ++ (n ++ " members: " ++ (show m) ++ "</li>") ++ str))
--}
 

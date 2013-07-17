@@ -32,7 +32,7 @@ instance PolicyModule TaskPolicyModule where
         document $ \_ -> do
           readers ==> unrestricted
           writers ==> unrestricted
-        field "user" key
+        field "name" key
       collection "tasks" $ do
         access $ do
           readers ==> unrestricted
