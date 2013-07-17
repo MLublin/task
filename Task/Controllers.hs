@@ -16,7 +16,7 @@ import Hails.Web.Controller
 import Hails.Data.Hson
 import Hails.Web.User
 import Hails.Database
-import Hails.Database.Structured --hiding (findAll)
+import Hails.Database.Structured hiding (findAll)
 import LIO
 import LIO.DCLabel
 import Data.Maybe
@@ -39,19 +39,13 @@ server = mkRouter $ do
       Nothing -> trace "user not found" $ do
         respond $ respondHtml "Tasks" $ trace "creating new user" $ newUser user
       Just usr -> trace ("line 41 ") $ do
+
         unlabeled <- liftLIO $ unlabel usr
         u <- fromDocument unlabeled -- returns a User
-        let otids = trace ("Line 44 u : " ++ (show u)) $ userTasks u
-        let stids = map show otids
-        let tids = map (\t -> read t :: ObjectId) stids
-        --mtasks <- liftLIO $ withTaskPolicyModule $ trace (show tids) $ mapM (findBy "tasks" "_id") tids
-        mldocs <- liftLIO $ withTaskPolicyModule $ trace ("tids: " ++ show tids) $
-          mapM (\name -> findAll $ select ["name" -: name] "tasks")
-               ["t" :: String] -- [Maybe LabeledHsonDoc]
-        docs <- liftLIO $ withTaskPolicyModule $ trace "yo" $ mapM (\mdoc -> liftLIO $ unlabel $ fromJust mdoc) mldocs
-        tasks <- trace "here" $ mapM fromDocument docs
-        --let tasks = trace (show mtasks) $ map fromJust mtasks
-        respond $ trace "probably not getting here" respondHtml "Tasks" $ displayPage user tasks
+        let tids = trace ("Line 44 u : " ++ (show u)) $ userTasks u
+        mtasks <- liftLIO $ withTaskPolicyModule $ trace (show tids) $  mapM (findBy "tasks" "_id") tids 
+        let tasks = trace (show mtasks) $ map fromJust mtasks
+        respond $ respondHtml "Tasks" $ displayPage user tasks
 
   post "/people" $ trace "post /people" $ do
     userdoc <- include ["name", "tasks"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
@@ -64,15 +58,16 @@ server = mkRouter $ do
     let users =  map (\u -> "name" `at` u) people
     respond $ respondHtml "Users" $ showUsers users
 
-  post "/task" $ trace "Post/Task" $ do
+  post "/task" $ trace "Post/Task" $ do   
     taskdoc <- include ["name", "members", "completed"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
     let members = trace "line 63" $ splitOn (" " :: String) ("members" `at` taskdoc)
-    let task = trace "line 64" $ merge ["members" -: (members :: [String])] taskdoc
+    let task = trace "line 64" $ merge ["members" -: (members :: [String])] taskdoc 
     tId <- liftLIO $ withTaskPolicyModule $ insert "tasks" task
     alldocs <- liftLIO $ withTaskPolicyModule $ trace "line 66" $ findAll $ select [] "users"
     let memDocs = trace (show alldocs) $ filter (\u -> ("name" `at` u) `elem` members) alldocs
     liftLIO $ withTaskPolicyModule $ trace "addTasks" $ addTasks memDocs tId
-    respond $ redirectTo "/"
+    respond $ redirectTo "/"   
+
 
 addTasks :: [HsonDocument] -> ObjectId -> DBAction ()
 addTasks memDocs taskId = trace "addTasks called" $ do
@@ -86,7 +81,6 @@ addTasks memDocs taskId = trace "addTasks called" $ do
       save "users" newDoc
       trace (show $ length memDocs) $ addTasks (tail memDocs) taskId
 
-{-_
 findAll :: Query -> DBAction [HsonDocument]
 findAll q = do
         cur <- find q
@@ -98,5 +92,4 @@ findAll q = do
                 Just ldoc -> do
                         doc <- liftLIO $ unlabel ldoc
                         getAll cur (list ++ [doc])
--}
 
