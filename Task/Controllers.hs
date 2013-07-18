@@ -20,6 +20,7 @@ import Hails.Database.Structured hiding (findAll)
 import LIO
 import LIO.DCLabel
 import Data.Maybe
+import Data.Time.Clock
 import Data.List.Split
 import Text.Blaze.Renderer.Text
 import Text.Blaze.Html5 hiding (Tag, map, head, select)
@@ -47,49 +48,61 @@ server = mkRouter $ do
         mprojects <- liftLIO $ withTaskPolicyModule $ trace (show pids) $  mapM (findBy "projects" "_id") pids 
         let projects = map fromJust mprojects
         respond $ respondHtml "Projects" $ displayHomePage user projects
+ 
+  get "/projects/new" $ trace "/projects/new" $ withUserOrDoAuth $ \user -> do
+    respond $ respondHtml "newProject" $ trace "newProject" $ newProject user
 
   get "/projects/:pid" $ withUserOrDoAuth $ \user -> trace ("user logged in: " ++ T.unpack user) $ do
-    pid <- queryParam "pid"
-    mpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
+    (Just sid) <- queryParam "pid"
+    let pid = read (S8.unpack sid) :: ObjectId
+    mpdoc <- trace ("pid: " ++ show pid) $ liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
     case mpdoc of
-      Nothing -> respond notFound 
+      Nothing -> trace "proj not found" $ respond notFound 
       Just pdoc -> do
-        proj <- (liftLIO . unlabel pdoc) >>= fromDocument
+        proj <- trace "62" $ (liftLIO $ unlabel pdoc) >>= fromDocument
         if not $ user `elem` (projectMembers proj)
-          then respond $ redirectTo "/"
+          then trace "64" $ respond $ redirectTo "/"
           else do
-            mudoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
-            unlabeled <- liftLIO $ unlabel $ fromJust mudoc
-            u <- fromDocument unlabeled -- returns a User
+            mudoc <- trace "66" $ liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
+            let udoc = fromJust mudoc
+            unlabeled <- trace "68" $ liftLIO $ unlabel udoc
+            u <- fromDocument unlabeled
             let tids = projectTasks proj
-            mtasks <- liftLIO $ withTaskPolicyModule $ mapM (findBy "tasks" "_id") tids 
+            mtasks <- trace ("tids: " ++ show tids) $ liftLIO $ withTaskPolicyModule $ mapM (findBy "tasks" "_id") tids 
             let tasks = trace (show mtasks) $ map fromJust mtasks
             respond $ respondHtml "Tasks" $ displayProjectPage u tasks proj
- 
-  get "/projects/new" $ withUserOrDoAuth $ \user -> do
-    respond $ respondHtml "newProject" $ newProject user
 
   post "/projects" $ do
     pdoc <- include ["title", "members", "completed", "startTime", "endTime", "leaders", "tasks"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
     let members = splitOn (" " :: String) ("members" `at` pdoc)
     let leaders = splitOn (" " :: String) ("leaders" `at` pdoc)
-    let project = trace "line 64" $ merge ["members" -: (members :: [String]), "leaders" -: (leaders :: [String])] pdoc 
+    let project = merge [ "members" -: (members :: [String])
+                        , "leaders" -: (leaders :: [String])
+                        , "tasks" -: ([] :: [ObjectId])] pdoc 
     pId <- liftLIO $ withTaskPolicyModule $ insert "projects" project
     alldocs <- liftLIO $ withTaskPolicyModule $ trace "line 66" $ findAll $ select [] "users"
     let memDocs = trace (show alldocs) $ filter (\u -> ("name" `at` u) `elem` members) alldocs
     liftLIO $ withTaskPolicyModule $ trace "addProjects" $ addProjects memDocs pId
-    respond $ redirectTo "/projects/" ++ show pId 
+    respond $ redirectTo ("/projects/" ++ show pId)
 
 
 -- Tasks -----
 
-  post "/task" $ trace "Post/Task" $ do   
-    taskdoc <- include ["name", "members", "completed"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
+  post "/projects/:pid/tasks" $ trace "Post/Task" $ do
+    (Just sid) <- queryParam "pid"
+    let pid = read (S8.unpack sid) :: ObjectId
+    taskdoc <- include ["name", "members", "project", "completed"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
     let members = trace "line 63" $ splitOn (" " :: String) ("members" `at` taskdoc)
     let task = trace "line 64" $ merge ["members" -: (members :: [String])] taskdoc 
     tId <- liftLIO $ withTaskPolicyModule $ insert "tasks" task
-    alldocs <- liftLIO $ withTaskPolicyModule $ trace "line 66" $ findAll $ select [] "users"
-    let memDocs = trace (show alldocs) $ filter (\u -> ("name" `at` u) `elem` members) alldocs
+    mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select [ "_id" -: pid ] "projects"
+    pdoc <- liftLIO $ unlabel $ fromJust mlpdoc
+    let curTasks = "tasks" `at` pdoc
+    let newTasks = tId:curTasks
+    let newDoc = merge ["tasks" -: newTasks] pdoc
+    alludocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
+    let memDocs = filter (\u -> ("name" `at` u) `elem` members) alludocs
+    liftLIO $ withTaskPolicyModule $ save "projects" newDoc
     liftLIO $ withTaskPolicyModule $ trace "addTasks" $ addTasks memDocs tId
     respond $ redirectTo "/"   
 
@@ -98,7 +111,8 @@ server = mkRouter $ do
 
   post "/people" $ trace "post /people" $ do
     userdoc <- include ["name", "tasks"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
-    let usrdoc = merge ["tasks" -: ([] :: [ObjectId])] userdoc
+    let usrdoc = merge [ "tasks"    -: ([] :: [ObjectId])
+                       , "projects" -: ([] :: [ObjectId]) ] userdoc
     liftLIO $ withTaskPolicyModule $ trace "line 49" $ insert "users" usrdoc
     respond $ redirectTo "/"
  

@@ -1,5 +1,7 @@
 {-# LANGUAGE OverloadedStrings, DeriveDataTypeable #-}
-module Task.Models ( Task(..), User(..) ) where
+module Task.Models ( Task(..)
+                   , User(..)
+                   , Project(..) ) where
 
 import Prelude hiding (lookup)
 import qualified Data.ByteString.Lazy as L
@@ -69,12 +71,12 @@ instance DCRecord User where
   fromDocument doc = trace "fromDoc user" $ do
     let uid = lookupObjIdh "_id" doc
     name <- lookup "name" doc
-    projects <- lookup "name" doc
-    let tasks = at "tasks" doc
-    return User { userId = uid
+    let projects = trace "lookup projs" $ at "projects" doc
+    let tasks = trace "lookup tasks" $ at "tasks" doc
+    trace "returning user" $ return User { userId = uid
                 , userName = name
                 , userTasks = tasks
-                , userProjects = projects}
+                , userProjects = projects }
 
   toDocument u = trace "toDoc user" $
     [ "_id"  -: userId u
@@ -90,8 +92,8 @@ data Project = Project {
   projectTitle :: String,
   projectMembers :: [UserName],
   projectCompleted :: Bool,
-  projectStartTime :: UTCTime,
-  projectEndTime :: UTCTime,
+  projectStartTime :: String,
+  projectEndTime :: String,
   projectLeaders :: [UserName],
   projectTasks :: [ObjectId]
 } deriving (Show, Eq, Typeable)
@@ -110,8 +112,8 @@ instance DCRecord Project where
                 , projectTitle = title
                 , projectMembers = members
                 , projectCompleted = read completed 
-                , projectStartTime = read startTime
-                , projectEndTime = read endTime
+                , projectStartTime = startTime
+                , projectEndTime = endTime
                 , projectLeaders = leaders
                 , projectTasks = tasks }
 
