@@ -65,6 +65,7 @@ displayProjectPage user tasks project = do
       p $ do
         label ! for "members" $ "Invite members"
         input ! type_ "text" ! name "members"
+      input ! type_ "hidden" ! name "project" ! value (toValue pid)
       input ! type_ "hidden" ! name "completed" ! value "False"
       button ! type_ "submit" $ "Add Task"
   div $ do

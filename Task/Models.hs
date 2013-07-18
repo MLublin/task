@@ -48,7 +48,7 @@ instance DCRecord Task where
                 , taskName = name
                 , taskMembers = members
                 , taskCompleted = read completed
-                , taskProject = project }
+                , taskProject = read project }
 
   toDocument t =
     [ "_id"  -: taskId t
