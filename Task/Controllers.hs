@@ -52,6 +52,23 @@ server = mkRouter $ do
   get "/projects/new" $ trace "/projects/new" $ withUserOrDoAuth $ \user -> do
     respond $ respondHtml "newProject" $ trace "newProject" $ newProject user
 
+  post "/projects/edit" $ do
+    pdoc <- include ["_id", "title", "desc", "members", "completed", "startTime", "endTime", "leaders"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
+    let pId = read (drop 5 $ at "_id" pdoc) :: ObjectId
+    mloldproj <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pId] "projects"
+    oldproj <- liftLIO $ unlabel $ fromJust mloldproj
+    let members = splitOn (" " :: String) ("members" `at` pdoc)
+    let leaders = splitOn (" " :: String) ("leaders" `at` pdoc)
+    let project = merge [ "members" -: (members :: [String])
+                        , "leaders" -: (leaders :: [String])
+                        , "_id" -: pId
+                        , "tasks" -: (("tasks" `at` oldproj) :: [ObjectId]) ] pdoc 
+    liftLIO $ withTaskPolicyModule $ save "projects" project
+    alldocs <- liftLIO $ withTaskPolicyModule $ trace "line 66" $ findAll $ select [] "users"
+    let memDocs = trace (show alldocs) $ filter (\u -> ("name" `at` u) `elem` members) alldocs
+    liftLIO $ withTaskPolicyModule $ trace "addProjects" $ addProjects memDocs pId
+    respond $ redirectTo ("/projects/" ++ show pId)
+     
   get "/projects/:pid" $ withUserOrDoAuth $ \user -> trace ("user logged in: " ++ T.unpack user) $ do
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
@@ -73,7 +90,7 @@ server = mkRouter $ do
             respond $ respondHtml "Tasks" $ displayProjectPage u tasks proj
 
   post "/projects" $ do
-    pdoc <- include ["title", "members", "completed", "startTime", "endTime", "leaders", "tasks"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
+    pdoc <- include ["title", "desc", "members", "completed", "startTime", "endTime", "leaders", "tasks"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
     let members = splitOn (" " :: String) ("members" `at` pdoc)
     let leaders = splitOn (" " :: String) ("leaders" `at` pdoc)
     let project = merge [ "members" -: (members :: [String])
@@ -85,7 +102,12 @@ server = mkRouter $ do
     liftLIO $ withTaskPolicyModule $ trace "addProjects" $ addProjects memDocs pId
     respond $ redirectTo ("/projects/" ++ show pId)
 
-
+  get "/projects/:pid/edit" $ withUserOrDoAuth $ \user -> do
+    (Just sid) <- queryParam "pid"
+    let pid = read (S8.unpack sid) :: ObjectId 
+    mpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
+    proj <- (liftLIO $ unlabel $ fromJust mpdoc) >>= fromDocument
+    respond $ respondHtml "Edit" $ editProject proj user 
 -- Tasks -----
 
   post "/projects/:pid/tasks" $ trace "Post/Task" $ do
@@ -104,7 +126,7 @@ server = mkRouter $ do
     let memDocs = filter (\u -> ("name" `at` u) `elem` members) alludocs
     liftLIO $ withTaskPolicyModule $ save "projects" newDoc
     liftLIO $ withTaskPolicyModule $ trace "addTasks" $ addTasks memDocs tId
-    respond $ redirectTo "/"   
+    respond $ redirectTo ("/projects/" ++ show pid)   
 
 
 -- Users -----
@@ -141,10 +163,12 @@ addProjects memDocs pId = do
     else do
       let doc = head memDocs
       let curProjects = "projects" `at` doc
-      let newProjects = pId:curProjects
-      let newDoc = merge ["projects" -: newProjects] doc
-      save "users" newDoc
-      trace (show $ length memDocs) $ addProjects (tail memDocs) pId
+      if (pId `elem` curProjects) then addProjects (tail memDocs) pId
+      else do 
+        let newProjects = pId:curProjects
+        let newDoc = merge ["projects" -: newProjects] doc
+        save "users" newDoc
+        trace (show $ length memDocs) $ addProjects (tail memDocs) pId
 
 findAll :: Query -> DBAction [HsonDocument]
 findAll q = do

@@ -37,7 +37,7 @@ import Task.Models
 
 displayHomePage :: UserName -> [Project] -> Html
 displayHomePage user projects = do
-  h1 $ toHtml $ "Welcome" ++ T.unpack user
+  h1 $ toHtml $ "Welcome " ++ T.unpack user
   h2 $ "Projects"
   p $ a ! href "/projects/new" $ "Create new project"
   ul $ forM_ projects $ \proj -> do
@@ -49,6 +49,10 @@ displayProjectPage user tasks project = do
   script ! src "http://code.jquery.com/jquery-latest.min.js" $ ""
   script ! src "/static/tasks.js" $ ""
   div $ h1 ! class_ "top" ! id "name" $ toHtml $ projectTitle project
+  if (userName user `elem` projectLeaders project) 
+    then p $ a ! href (toValue ("/projects/" ++ (show $ fromJust $ projectId project) ++ "/edit")) $ "Edit Project"
+    else ""
+  div $ p ! class_ "top" ! id "desc" $ toHtml $ projectDesc project
   div $ do
     p $ toHtml ("Start time: " ++ projectStartTime project)
     p $ toHtml ("End time: " ++ projectEndTime project)
@@ -74,11 +78,11 @@ displayProjectPage user tasks project = do
   div $ do
     h3 $ "My tasks"
     let mytasks = filter (\t -> (userName user) `elem` (taskMembers t)) tasks
-    ul $ forM_ mytasks $ \task -> li $ toHtml $ taskName task
+    ul $ forM_ mytasks $ \task -> li $ toHtml $ (taskName task ++ ": " ++ (show $ taskMembers task))
   div $ do
     h3 $ "Other tasks"
     let otasks = filter (\t -> not $ (userName user) `elem` (taskMembers t)) tasks
-    ul $ forM_ otasks $ \task -> li $ toHtml $ taskName task
+    ul $ forM_ otasks $ \task -> li $ toHtml $ (taskName task ++ ": " ++ (show $ taskMembers task))
 
 newProject :: UserName -> Html
 newProject user = do
@@ -87,21 +91,52 @@ newProject user = do
       label ! for "title" $ "Project title: "
       input ! type_ "text" ! name "title"
     p $ do
+      label ! for "desc" $ "Project description: "
+      textarea ! name "desc" $ ""
+    p $ do
       label ! for "members" $ "Project members: "
       input ! type_ "text" ! name "members"
     p $ do
       label ! for "leaders" $ "Project leaders: "
       input ! type_ "text" ! name "leaders"
     p $ do
-      label ! for "endTime" $ "Project end time: "
-      input ! type_ "date" ! name "endTime"
-    p $ do
       label ! for "startTime" $ "Project start time: "
       input ! type_ "date" ! name "startTime"
+    p $ do
+      label ! for "endTime" $ "Project end time: "
+      input ! type_ "date" ! name "endTime"
     input ! type_ "hidden" ! name "completed" ! value "False"
     input ! type_ "hidden" ! name "tasks[]" ! value ""
-    button ! type_ "submit" $ "Add Task"
+    button ! type_ "submit" $ "Add Project"
 
+editProject :: Project -> UserName -> Html
+editProject project user = do
+  form ! id "editprojectform" ! action "/projects/edit" ! method "post" $ do 
+    p $ do
+      label ! for "title" $ "Project title: "
+      input ! type_ "text" ! name "title" ! value (toValue $ projectTitle project)
+    p $ do
+      label ! for "desc" $ "Project description: "
+      textarea ! name "desc" $ "" ! value (toValue $ projectDesc project)
+    p $ do
+      label ! for "members" $ "Project members: "
+      input ! type_ "text" ! name "members" ! value (toValue $ showStr (projectMembers project) "")
+    p $ do
+      label ! for "leaders" $ "Project leaders: "
+      input ! type_ "text" ! name "leaders" ! value (toValue $ showStr (projectLeaders project) "")
+    p $ do
+      label ! for "startTime" $ "Project start time: "
+      input ! type_ "date" ! name "startTime" ! value (toValue $ projectStartTime project)
+    p $ do
+      label ! for "endTime" $ "Project end time: "
+      input ! type_ "date" ! name "endTime" ! value (toValue $ projectEndTime project)
+    p $ do
+      label ! for "completed" $ "Project completed: "
+      input ! type_ "radio" ! name "completed" ! value "True" 
+      input ! type_ "radio" ! name "completed" ! value "False" 
+    input ! type_ "hidden" ! name "tasks[]" ! value (toValue $ show $ projectTasks project)
+    input ! type_ "hidden" ! name "_id" ! value (toValue $ show $ projectId project)
+    button ! type_ "submit" $ "Add Project"
 
 -- Users -----
 
@@ -136,3 +171,10 @@ respondHtml ctitle content = okHtml $ renderHtml $ docTypeHtml $ do
 headL :: [a] -> a
 headL (x:_) =  x
 
+showStr :: [UserName] -> String -> String
+showStr list str = 
+  if list == []
+    then drop 1 str
+    else  
+      let name = T.unpack $ headL list
+      in showStr (tail list) (" " ++ name ++ str)

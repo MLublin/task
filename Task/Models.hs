@@ -95,7 +95,8 @@ data Project = Project {
   projectStartTime :: String,
   projectEndTime :: String,
   projectLeaders :: [UserName],
-  projectTasks :: [ObjectId]
+  projectTasks :: [ObjectId],
+  projectDesc :: String
 } deriving (Show, Eq, Typeable)
 
 instance DCRecord Project where
@@ -108,6 +109,7 @@ instance DCRecord Project where
     endTime <- lookup "endTime" doc
     leaders <- lookup "leaders" doc
     tasks <- lookup "tasks" doc
+    desc <- lookup "desc" doc
     return Project { projectId = pid
                 , projectTitle = title
                 , projectMembers = members
@@ -115,7 +117,8 @@ instance DCRecord Project where
                 , projectStartTime = startTime
                 , projectEndTime = endTime
                 , projectLeaders = leaders
-                , projectTasks = tasks }
+                , projectTasks = tasks
+                , projectDesc = desc }
 
   toDocument t =
     [ "_id"  -: projectId t
@@ -125,7 +128,8 @@ instance DCRecord Project where
     , "startTime" -: projectStartTime t
     , "endTime" -: projectEndTime t
     , "leaders" -: projectLeaders t
-    , "tasks" -: projectTasks t ]
+    , "tasks" -: projectTasks t 
+    , "desc" -: projectDesc t ]
 
   recordCollection _ = "projects"
 
