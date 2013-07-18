@@ -21,6 +21,7 @@ import Hails.Database.Structured
 import LIO
 import LIO.DCLabel
 import Data.Maybe
+import Data.Time.Clock
 import Data.Typeable
 
 import Task.Policy
@@ -30,7 +31,8 @@ data Task = Task {
   taskId :: Maybe ObjectId,
   taskName :: String,
   taskMembers :: [UserName],
-  taskCompleted :: Bool
+  taskCompleted :: Bool,
+  taskProject :: ObjectId
 } deriving (Show, Eq, Typeable)
 
 instance DCRecord Task where
@@ -39,112 +41,91 @@ instance DCRecord Task where
     name <- lookup "name" doc
     members <- lookup "members" doc
     completed <- lookup "completed" doc
+    project <- lookup "project" doc
     return Task { taskId = tid
                 , taskName = name
                 , taskMembers = members
-                , taskCompleted = read completed }
+                , taskCompleted = read completed
+                , taskProject = project }
 
   toDocument t =
     [ "_id"  -: taskId t
     , "name" -: taskName t
     , "members" -: (taskMembers t :: [UserName])
-    , "completed" -: taskCompleted t ]
+    , "completed" -: taskCompleted t
+    , "project" -: taskProject t]
 
   recordCollection _ = "tasks"
 
-instance HsonVal Task where
-  fromHsonValue (HsonValue (BsonDoc doc)) = do
-    let tid = lookupObjIdb "_id" doc  
-    name <- lookup "name" doc
-    members <- lookup "members" doc
-    completed <- lookup "completed" doc
-    return Task { taskId = tid
-                , taskName = name
-                , taskMembers = members 
-                , taskCompleted = read completed }
-  
-  fromHsonValue _ = fail "fromHsonValue error"  
-
-  toHsonValue t = HsonValue $ BsonDoc 
-    [ "_id"  -: taskId t
-    , "name" -: taskName t
-    , "members" -: taskMembers t
-    , "completed" -: taskCompleted t ]
-
-instance BsonVal Task where
-  fromBsonValue (BsonDoc doc) = do
-    let tid = lookupObjIdb "_id" doc  
-    name <- lookup "name" doc
-    members <- lookup "members" doc
-    completed <- lookup "completed" doc
-    return Task { taskId = tid
-                , taskName = name
-                , taskMembers = members 
-                , taskCompleted = read completed }
-  
-  fromBsonValue _ = fail "fromHsonValue error"  
-
-  toBsonValue t = BsonDoc 
-    [ "_id"  -: taskId t
-    , "name" -: taskName t
-    , "members" -: taskMembers t
-    , "completed" -: taskCompleted t ]
 
 data User = User {
   userId :: Maybe ObjectId,
   userName :: UserName,
-  userTasks :: [ObjectId]
+  userTasks :: [ObjectId],
+  userProjects :: [ObjectId]
 } deriving (Show, Eq, Typeable)
 
 instance DCRecord User where
   fromDocument doc = trace "fromDoc user" $ do
     let uid = lookupObjIdh "_id" doc
     name <- lookup "name" doc
+    projects <- lookup "name" doc
     let tasks = at "tasks" doc
     return User { userId = uid
                 , userName = name
-                , userTasks = tasks }
+                , userTasks = tasks
+                , userProjects = projects}
 
   toDocument u = trace "toDoc user" $
     [ "_id"  -: userId u
     , "name" -: userName u
-    , "tasks" -: userTasks u ]
+    , "tasks" -: userTasks u 
+    , "projects" -: userProjects u]
 
   recordCollection _ = "tasks"
 
-instance HsonVal User where
-  fromHsonValue (HsonValue (BsonDoc doc)) = do
-    let tid = lookupObjIdb "_id" doc
-    name <- lookup "name" doc
-    let tasks = lookupObjIdb "tasks" doc
-    return User { userId = tid
-                , userName = name
-                , userTasks = tasks }
-  
-  fromHsonValue _ = fail "fromHsonValue error"  
 
-  toHsonValue u = HsonValue $ BsonDoc 
-    [ "_id"  -: userId u
-    , "name" -: userName u
-    , "tasks" -: userTasks u ]
+data Project = Project {
+  projectId :: Maybe ObjectId,
+  projectTitle :: String,
+  projectMembers :: [UserName],
+  projectCompleted :: Bool,
+  projectStartTime :: UTCTime,
+  projectEndTime :: UTCTime,
+  projectLeaders :: [UserName],
+  projectTasks :: [ObjectId]
+} deriving (Show, Eq, Typeable)
 
-instance BsonVal User where
-  fromBsonValue (BsonDoc doc) = do
-    let tid = lookupObjIdb "_id" doc
-    name <- lookup "name" doc
-    otasks <- lookup "tasks" doc
-    let stasks = map show otasks
-    let tasks = map (\t -> read t :: ObjectId) otasks
-    return User { userId = tid
-                , userName = name
-                , userTasks = tasks }
-  
-  fromBsonValue _ = fail "fromBsonValue error"
+instance DCRecord Project where
+  fromDocument doc = do
+    let pid = lookupObjIdh "_id" doc
+    title <- lookup "title" doc
+    members <- lookup "members" doc
+    completed <- lookup "completed" doc
+    startTime <- lookup "startTime" doc
+    endTime <- lookup "endTime" doc
+    leaders <- lookup "leaders" doc
+    tasks <- lookup "tasks" doc
+    return Project { projectId = pid
+                , projectTitle = title
+                , projectMembers = members
+                , projectCompleted = read completed 
+                , projectStartTime = read startTime
+                , projectEndTime = read endTime
+                , projectLeaders = leaders
+                , projectTasks = tasks }
 
-  toBsonValue t = BsonDoc
-    [ "_id"  -: userId t
-    , "name" -: userName t
-    , "tasks" -: userTasks t ]
+  toDocument t =
+    [ "_id"  -: projectId t
+    , "title" -: projectTitle t
+    , "members" -: (projectMembers t :: [UserName])
+    , "completed" -: projectCompleted t
+    , "startTime" -: projectStartTime t
+    , "endTime" -: projectEndTime t
+    , "leaders" -: projectLeaders t
+    , "tasks" -: projectTasks t ]
+
+  recordCollection _ = "projects"
 
 
 lookupObjIdh :: Monad m => FieldName -> HsonDocument -> m ObjectId
@@ -162,4 +143,4 @@ lookupObjIdb n d = case lookup n d of
           Just i -> return i
           _ -> fail $ "lookupObjId: cannot extract id from " ++ show n
   where maybeRead = fmap fst . listToMaybe . reads
- 
+

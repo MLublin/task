@@ -32,7 +32,15 @@ import           Text.Regex
 import Task.Models
 
 
-displayPage :: UserName -> [Task] -> Html
+-- Projects -----
+
+displayHomePage :: UserName -> [Project] -> Html
+
+displayProjectPage :: UserName -> [Task] -> Project -> Html
+
+newProject :: UserName -> Html
+
+displayPage :: UserName -> [Task] -> Html -- this is never called
 displayPage user tasks = do
   script ! src "http://code.jquery.com/jquery-latest.min.js" $ ""
   script ! src "/static/social.js" $ ""
@@ -57,6 +65,9 @@ displayPage user tasks = do
       li $ toHtml $ taskName task
   iframe ! id "peopleframe" ! src "people" $ ""
 
+
+-- Users -----
+
 showUsers :: [UserName] -> Html
 showUsers users = do
   h3 $ "Users"
@@ -68,6 +79,9 @@ newUser user = trace "newUser" $ do
     input ! type_ "hidden" ! name "name" ! value (toValue $ T.unpack user)
     input ! type_ "text" ! name "tasks[]" ! value ""
   script $ "document.getElementById('people').submit();"
+
+
+-- Utils -----
 
 stylesheet :: String -> Html
 stylesheet uri = link ! rel "stylesheet" ! type_ "text/css" ! href (toValue uri)
@@ -81,6 +95,6 @@ respondHtml ctitle content = okHtml $ renderHtml $ docTypeHtml $ do
     script ! src "/static/js/bootstrap.js" $ ""
     content
 
-headL                    :: [a] -> a
-headL (x:_)              =  x
+headL :: [a] -> a
+headL (x:_) =  x
 

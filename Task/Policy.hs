@@ -44,6 +44,17 @@ instance PolicyModule TaskPolicyModule where
           readers ==> unrestricted
           writers ==> unrestricted
         field "_id" key
+      collection "projects" $ do
+        access $ do
+          readers ==> unrestricted
+          writers ==> unrestricted
+        clearance $ do
+          secrecy ==> this
+          integrity ==> unrestricted
+        document $ \_ -> do
+          readers ==> unrestricted
+          writers ==> unrestricted
+        field "_id" key
     return $ TaskPolicyModuleTCB priv
         where this = privDesc priv
 
