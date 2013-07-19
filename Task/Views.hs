@@ -58,6 +58,9 @@ displayProjectPage user tasks project = do
   if (userName user `elem` projectLeaders project) 
     then p $ a ! href (toValue ("/projects/" ++ (show $ fromJust $ projectId project) ++ "/edit")) $ "Edit Project"
     else ""
+  if (userName user `elem` projectLeaders project) 
+    then p $ a ! href (toValue ("/projects/" ++ (show $ fromJust $ projectId project) ++ "/remove")) $ "Remove Project"
+    else ""
   div $ p ! class_ "top" ! id "desc" $ toHtml $ projectDesc project
   div $ do
     p $ toHtml ("Start date: " ++ projectStartTime project)
