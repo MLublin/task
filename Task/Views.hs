@@ -53,7 +53,7 @@ displayHomePage user projects = do
 displayProjectPage :: User -> [Task] -> Project -> Html
 displayProjectPage user tasks project = do
   script ! src "http://code.jquery.com/jquery-latest.min.js" $ ""
-  script ! src "/static/tasks.js" $ ""
+  script ! src "/static/js/tasks.js" $ ""
   div $ h1 ! class_ "top" ! id "name" $ toHtml $ projectTitle project
   if (userName user `elem` projectLeaders project) 
     then p $ a ! href (toValue ("/projects/" ++ (show $ fromJust $ projectId project) ++ "/edit")) $ "Edit Project"
@@ -86,7 +86,18 @@ displayProjectPage user tasks project = do
   div $ do
     h3 $ "My tasks"
     let mytasks = filter (\t -> (userName user) `elem` (taskMembers t)) tasks
-    ul $ forM_ mytasks $ \task -> li $ toHtml $ (taskName task ++ ": " ++ (showStr (taskMembers task) ""))
+    h4 $ "In progress:"
+    let incomplete = filter (not . taskCompleted) mytasks
+    ul $ forM_ incomplete $ \task -> do
+      let tid = toValue $ show $ fromJust $ taskId task
+      li ! id tid ! class_ "task" $ toHtml $ (taskName task ++ ": " ++ (showStr (taskMembers task) ""))
+      checkTask task
+    h4 $ "Completed:"
+    let complete = filter taskCompleted mytasks
+    ul $ forM_ complete $ \task -> do
+      let tid = toValue $ show $ fromJust $ taskId task
+      li ! id tid ! class_ "task" $ toHtml $ (taskName task ++ ": " ++ (showStr (taskMembers task) ""))
+      checkTask task
   div $ do
     h3 $ "Other tasks"
     let otasks = filter (\t -> not $ (userName user) `elem` (taskMembers t)) tasks
@@ -151,6 +162,17 @@ editProject project user = do
     input ! type_ "hidden" ! name "tasks[]" ! value (toValue $ show $ projectTasks project)
     input ! type_ "hidden" ! name "_id" ! value (toValue $ show $ projectId project)
     button ! type_ "submit" $ "Edit Project"
+
+
+-- Tasks -----
+
+checkTask :: Task -> Html
+checkTask task = trace "checkTask" $ do
+  let tid = show $ fromJust $ taskId task
+  let fid = toValue ("form" ++ tid)
+  let act = "/tasks/" ++ tid ++ "/edit"
+  form ! id fid ! action (toValue act) ! method "post" $ do
+    input ! type_ "hidden" ! name "completed" ! value "True"
 
 -- Users -----
 

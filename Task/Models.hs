@@ -7,6 +7,7 @@ import Prelude hiding (lookup)
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as L8
 import qualified Data.Text as T
+import           Data.Aeson
 import qualified Data.ByteString.Char8 as S8
 
 import Control.Monad
@@ -37,14 +38,25 @@ data Task = Task {
   taskProject :: ObjectId
 } deriving (Show, Eq, Typeable)
 
+{-
+instance ToJSON Task where
+  toJSON (Task i n m c p) =
+    object [ "_id"       .= (show $ fromJust i)
+           , "name"      .= n
+           , "completed" .= (show c)
+           , "completed" .= (show c)
+           , "project"   .= p
+           ]
+           -}
+
 instance DCRecord Task where
-  fromDocument doc = do
+  fromDocument doc = trace "fromDoc task" $ do
     let tid = lookupObjIdh "_id" doc
     name <- lookup "name" doc
     members <- lookup "members" doc
-    completed <- lookup "completed" doc
-    project <- lookup "project" doc
-    return Task { taskId = tid
+    completed <- trace "lookup completed" $ lookup "completed" doc
+    project <- trace "lookup proj" $ lookup "project" doc
+    trace "returning task" $ return Task { taskId = tid
                 , taskName = name
                 , taskMembers = members
                 , taskCompleted = read completed
@@ -108,17 +120,17 @@ instance DCRecord Project where
     startTime <- lookup "startTime" doc
     endTime <- lookup "endTime" doc
     leaders <- lookup "leaders" doc
-    tasks <- lookup "tasks" doc
-    desc <- lookup "desc" doc
-    return Project { projectId = pid
-                , projectTitle = title
-                , projectMembers = members
-                , projectCompleted = read completed 
-                , projectStartTime = startTime
-                , projectEndTime = endTime
-                , projectLeaders = leaders
-                , projectTasks = tasks
-                , projectDesc = desc }
+    tasks <- trace "lookup tasks" $ lookup "tasks" doc
+    desc <- trace "lookup desc" $ lookup "desc" doc
+    trace "returning project" $ return Project { projectId = pid
+                   , projectTitle = title
+                   , projectMembers = members
+                   , projectCompleted = read completed 
+                   , projectStartTime = startTime
+                   , projectEndTime = endTime
+                   , projectLeaders = leaders
+                   , projectTasks = tasks
+                   , projectDesc = desc }
 
   toDocument t =
     [ "_id"  -: projectId t

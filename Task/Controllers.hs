@@ -109,16 +109,20 @@ server = mkRouter $ do
     proj <- (liftLIO $ unlabel $ fromJust mpdoc) >>= fromDocument
     respond $ respondHtml "Edit" $ editProject proj user 
 
+
+-- Tasks -----
+
   post "/tasks/:tid/edit" $ do
     (Just sid) <- queryParam "tid"
     let tid = read (S8.unpack sid) :: ObjectId
+    completed <- include ["completed"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
     mltdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: tid] "tasks" 
     tdoc <- liftLIO $ unlabel $ fromJust mltdoc
-    let newtdoc = merge ["completed" -: True] tdoc
-    liftLIO $ withTaskPolicyModule $ save "tasks" newtdoc
-    respond $ redirectTo ("/projects/" ++ (show (("project" `at` tdoc) :: ObjectId))) 
-
--- Tasks -----
+    let newtdoc = merge completed tdoc
+    trace ("old doc: " ++ show tdoc) $ trace ("completed doc: " ++ show completed) $ liftLIO $ withTaskPolicyModule $ save "tasks" newtdoc
+    --trace ("newtdoc: " ++ show newtdoc) $ respond $ trace "redirecting to proj page" $ redirectTo "/"
+    redirectBack
+    --respond $ trace "redirecting to proj page" $ redirectTo ("/projects/" ++ (show (("project" `at` tdoc) :: ObjectId))) 
 
   post "/projects/:pid/tasks" $ trace "Post/Task" $ do
     (Just sid) <- queryParam "pid"
