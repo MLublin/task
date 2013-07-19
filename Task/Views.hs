@@ -107,6 +107,8 @@ displayProjectPage user tasks project = do
 
 newProject :: UserName -> [UserName] -> Html
 newProject user members = do
+  script ! src "http://code.jquery.com/jquery-latest.min.js" $ ""
+  script ! src "/static/js/user_select.js" $ ""
   form ! id "newprojectform" ! action "/projects" ! method "post" $ do
     p $ do
       label ! for "title" $ "Project title: "
