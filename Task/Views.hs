@@ -128,14 +128,14 @@ newProject user members = do
       label ! for "desc" $ "Project description: "
       textarea ! name "desc" $ ""
 
-    p ! id "memberSelect" $ do
+    div ! id "memberSelect" $ do
       p $ "select members for this project"
       --label ! for "members" $ "Project members: "
       forM_ members $ \member -> do
                           toHtml $ T.unpack member  
-                          input ! type_ "checkbox" ! class_ "memberCheckbox" !name "members[]" ! value (toValue member) 
+                          input ! type_ "checkbox" ! class_ "memberCheckbox" ! name "members[]" ! value (toValue member) 
       
-    p ! id "leaderSelect" $ do
+    div ! id "leaderSelect" $ do
       p $ "select leaders for this project"
       --label ! for "members" $ "Project members: "
       forM_ members $ \member -> do

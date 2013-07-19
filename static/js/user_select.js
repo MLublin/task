@@ -1,21 +1,28 @@
 $(document).ready(function() {
+    $('.leaderCheckbox').hide();
     console.log("checkbox script loaded");
-    $('.membersCheckbox').click(function() {
+    $('.memberCheckbox').click(function() {
         var selected = [];
-        $('#userSelect input:checked').each(function(){
+        console.log("eeeeeee");
+        $('#memberSelect input:checked').each(function(){
             console.log($(this).attr('name'));
             selected.push($(this).val());
         });
         console.log(selected[0]);
         $('#leaderSelect input:checkbox').each(function(){
-            var hideIt = true;
+            var showIt = false;
             for (var i = selected.length - 1; i >= 0; i--) {
-                console.log("in loop");
+                console.log(selected[i]);
                  if($(this).val() == selected[i]){
-                    hideIt = false;
+                    showIt = true;
                     break;
                  }
             }
-            if(hideIt) $(this).hide();
+            if(showIt){
+                $(this).show();
+            } else {
+                $(this).hide();
+            }
+        });
     });
 });
