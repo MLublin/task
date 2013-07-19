@@ -105,8 +105,8 @@ displayProjectPage user tasks project = do
   div $ do
     a ! href "/" $ "Home Page"
 
-newProject :: UserName -> Html
-newProject user = do
+newProject :: UserName -> [UserName] -> Html
+newProject user members = do
   form ! id "newprojectform" ! action "/projects" ! method "post" $ do
     p $ do
       label ! for "title" $ "Project title: "
@@ -114,12 +114,20 @@ newProject user = do
     p $ do
       label ! for "desc" $ "Project description: "
       textarea ! name "desc" $ ""
-    p $ do
-      label ! for "members" $ "Project members: "
-      input ! type_ "text" ! name "members"
-    p $ do
-      label ! for "leaders" $ "Project leaders: "
-      input ! type_ "text" ! name "leaders"
+
+    p ! id "memberSelect" $ do
+      p $ "select members for this project"
+      --label ! for "members" $ "Project members: "
+      forM_ members $ \member -> do
+                          toHtml $ T.unpack member  
+                          input ! type_ "checkbox" ! class_ "memberCheckbox" !name "members[]" ! value (toValue member) 
+      
+    p ! id "leaderSelect" $ do
+      p $ "select leaders for this project"
+      --label ! for "members" $ "Project members: "
+      forM_ members $ \member -> do
+                          toHtml $ T.unpack member  
+                          input ! type_ "checkbox" ! class_ "leaderCheckbox" ! name "leaders[]" ! value (toValue member) 
     p $ do
       label ! for "startTime" $ "Project start time: "
       input ! type_ "date" ! name "startTime"
