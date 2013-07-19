@@ -117,6 +117,15 @@ server = mkRouter $ do
     mpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
     proj <- (liftLIO $ unlabel $ fromJust mpdoc) >>= fromDocument
     respond $ respondHtml "Edit" $ editProject proj user 
+  
+  get "/projects/:pid/remove" $ withUserOrDoAuth $ \user -> do
+    (Just sid) <- queryParam "pid"
+    let pid = read (S8.unpack sid) :: ObjectId
+    mpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
+    proj <- liftLIO $ unlabel $ fromJust mpdoc
+    let projmembers = "members" `at` proj
+    liftLIO $ withTaskPolicyModule $ removeProj projmembers pid
+    respond $ redirectTo "/"
 
 
 -- Tasks -----
@@ -190,6 +199,23 @@ addProjects memDocs pId = do
         let newDoc = merge ["projects" -: newProjects] doc
         save "users" newDoc
         trace (show $ length memDocs) $ addProjects (tail memDocs) pId
+
+removeProj :: [UserName] -> ObjectId -> DBAction ()
+removeProj users proj = do
+  if users == []
+    then return ()
+    else do
+      let user = head users
+      userdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
+      u <- liftLIO $ unlabel $ fromJust userdoc
+      projs <- lookup "projects" u
+      let newprojs = filter (/= proj) projs
+      let newdoc = merge ["projects" -: newprojs] u
+      liftLIO $ withTaskPolicyModule $ save "users" newdoc
+      removeProj (tail users) proj
+      
+
+      
 
 commentController :: RESTController
 commentController = do
