@@ -56,7 +56,10 @@ server = mkRouter $ do
         respond $ respondHtml "Projects" $ displayHomePage user projects
  
   get "/projects/new" $ trace "/projects/new" $ withUserOrDoAuth $ \user -> do
-    respond $ respondHtml "newProject" $ trace "newProject" $ newProject user
+    allUserdocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
+    allUsers <- mapM (\ud -> fromDocument ud) allUserdocs
+    let allUserNames = map (\u -> userName u) allUsers
+    respond $ respondHtml "newProject" $ newProject user allUserNames 
 
   post "/projects/edit" $ do
     pdoc <- include ["_id", "title", "desc", "members", "completed", "startTime", "endTime", "leaders"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
@@ -97,8 +100,8 @@ server = mkRouter $ do
 
   post "/projects" $ do
     pdoc <- include ["title", "desc", "members", "completed", "startTime", "endTime", "leaders", "tasks"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
-    let members = splitOn (" " :: String) ("members" `at` pdoc)
-    let leaders = splitOn (" " :: String) ("leaders" `at` pdoc)
+    let members = {-splitOn (" " :: String)-} ("members" `at` pdoc)
+    let leaders = {-splitOn (" " :: String)-} ("leaders" `at` pdoc)
     let project = merge [ "members" -: (members :: [String])
                         , "leaders" -: (leaders :: [String])
                         , "tasks" -: ([] :: [ObjectId])] pdoc 
