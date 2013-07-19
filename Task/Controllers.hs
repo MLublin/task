@@ -11,17 +11,21 @@ import Debug.Trace
 
 import Hails.HttpServer hiding (Query)
 import Hails.Web
+import Hails.Web.REST (RESTController)
+import qualified Hails.Web.REST as REST
 import Hails.Web.Frank
 import Hails.Web.Controller
 import Hails.Data.Hson
 import Hails.Web.User
 import Hails.Database
 import Hails.Database.Structured hiding (findAll)
+import qualified Hails.Database.Structured as D
 import LIO
 import LIO.DCLabel
 import Data.Maybe
 import Data.Time.Clock
 import Data.List.Split
+import Data.Aeson (decode, encode, toJSON)
 import Text.Blaze.Renderer.Text
 import Text.Blaze.Html5 hiding (Tag, map, head, select)
 
@@ -33,6 +37,8 @@ import Task.Views
 
 server :: Application
 server = mkRouter $ do
+  routeVar "pid" $ do
+    routeName "comments" commentController
  
 -- Projects ----
 
@@ -120,9 +126,7 @@ server = mkRouter $ do
     tdoc <- liftLIO $ unlabel $ fromJust mltdoc
     let newtdoc = merge completed tdoc
     trace ("old doc: " ++ show tdoc) $ trace ("completed doc: " ++ show completed) $ liftLIO $ withTaskPolicyModule $ save "tasks" newtdoc
-    --trace ("newtdoc: " ++ show newtdoc) $ respond $ trace "redirecting to proj page" $ redirectTo "/"
     redirectBack
-    --respond $ trace "redirecting to proj page" $ redirectTo ("/projects/" ++ (show (("project" `at` tdoc) :: ObjectId))) 
 
   post "/projects/:pid/tasks" $ trace "Post/Task" $ do
     (Just sid) <- queryParam "pid"
@@ -183,6 +187,40 @@ addProjects memDocs pId = do
         let newDoc = merge ["projects" -: newProjects] doc
         save "users" newDoc
         trace (show $ length memDocs) $ addProjects (tail memDocs) pId
+
+commentController :: RESTController
+commentController = do
+  REST.index $ withUserOrDoAuth $ \user -> indexComs user
+
+  REST.create $ withUserOrDoAuth $ \user -> do
+    let ctype = "text/json"
+        respJSON403 msg = Response status403 [(hContentType, ctype)] $
+                           L8.pack $ "{ \"error\" : " ++
+                                       show (msg :: String) ++ "}"
+    ldoc <- request >>= labeledRequestToHson
+    liftLIO . withTaskPolicyModule $ insert "comments" ldoc
+    indexComs user
+
+  REST.update $ withUserOrDoAuth $ \user -> do
+    let ctype = "text/json"
+        respJSON403 msg = Response status403 [(hContentType, ctype)] $
+                           L8.pack $ "{ \"error\" : " ++
+                                       show (msg :: String) ++ "}"
+    doc <- include ["_id", "author", "proj", "text", "parent"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
+    --doc <- liftLIO $ unlabel ldoc
+    liftLIO $ withTaskPolicyModule $ save "comments" doc
+    indexComs user
+
+indexComs username = do
+  sid <- queryParam "pid"
+  let str = S8.unpack $ fromJust sid  -- proj id as a string
+  let pid = read str -- proj id as an ObjectId
+  comments <- liftLIO . withTaskPolicyModule $ D.findAll $ select [] "comments" 
+  matype <- requestHeader "accept"
+  case matype of
+    Just atype | "application/json" `S8.isInfixOf` atype ->
+       return $ ok "application/json" (encode $ toJSON comments)
+    _ -> return $ respondHtml (toHtml $ T.unpack username) $ showPage comments username pid
 
 findAll :: Query -> DBAction [HsonDocument]
 findAll q = do

@@ -1,6 +1,7 @@
 {-# LANGUAGE OverloadedStrings, DeriveDataTypeable #-}
 module Task.Models ( Task(..)
                    , User(..)
+                   , Comment(..)
                    , Project(..) ) where
 
 import Prelude hiding (lookup)
@@ -37,17 +38,6 @@ data Task = Task {
   taskCompleted :: Bool,
   taskProject :: ObjectId
 } deriving (Show, Eq, Typeable)
-
-{-
-instance ToJSON Task where
-  toJSON (Task i n m c p) =
-    object [ "_id"       .= (show $ fromJust i)
-           , "name"      .= n
-           , "completed" .= (show c)
-           , "completed" .= (show c)
-           , "project"   .= p
-           ]
-           -}
 
 instance DCRecord Task where
   fromDocument doc = trace "fromDoc task" $ do
@@ -144,6 +134,66 @@ instance DCRecord Project where
     , "desc" -: projectDesc t ]
 
   recordCollection _ = "projects"
+
+
+-- Comments ----
+
+data Comment = Comment
+    { commentId        :: Maybe ObjectId
+    , commentAuthor    :: UserName  -- author
+    , commentAssocProj :: ObjectId -- what proj it belongs to
+    , commentText :: String -- the comment body text
+    , commentInReplyTo :: Maybe ObjectId  -- comment it's in reply to
+    } deriving Show
+
+instance ToJSON Comment where
+  toJSON (Comment i a p t mp) =  -- id, author, proj, text, parent
+    object [ "_id"    .= (show $ fromJust i)
+           , "author" .= a
+           , "proj"   .= (show p)
+           , "text"   .= t
+           , "parent" .= case mp of
+                           Just p -> show p
+                           _ -> ""
+           ]
+
+instance DCRecord Comment where
+  fromDocument doc = do
+    let cid = lookupObjId "_id" doc
+    author <- lookup "author" doc
+    text <- lookup "text" doc -- body text
+    proj <- lookupObjId "proj" doc -- associated proj
+    let parent = lookupObjId "parent" doc -- the comment it's in reply to
+    return Comment { commentId = cid
+                   , commentAuthor = author
+                   , commentAssocProj = proj
+                   , commentText = text
+                   , commentInReplyTo = parent }
+
+  toDocument c =
+    let mparent = commentInReplyTo c
+        parent = if isJust mparent
+                   then [ "parent" -: fromJust mparent ]
+                   else []
+        mid = commentId c
+        id = if isJust mparent
+               then [ "_id" -: fromJust mid ]
+               else []
+    in id ++
+       [ "author" -: commentAuthor c
+       , "post" -: commentAssocProj c
+       , "text" -: commentText c ]
+       ++ parent
+
+  recordCollection _ = "comments"
+
+lookupObjId :: Monad m => FieldName -> HsonDocument -> m ObjectId
+lookupObjId n d = case lookup n d of
+    Just i -> return (i :: ObjectId)
+    _ -> case do { s <- lookup n d; maybeRead s } of
+          Just i -> return i
+          _ -> fail $ "lookupObjId: cannot extract id from " ++ show n
+  where maybeRead = fmap fst . listToMaybe . reads
 
 
 lookupObjIdh :: Monad m => FieldName -> HsonDocument -> m ObjectId
