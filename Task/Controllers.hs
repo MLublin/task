@@ -224,7 +224,7 @@ commentController :: RESTController
 commentController = do
   REST.index $ withUserOrDoAuth $ \user -> indexComs user
 
-  REST.create $ withUserOrDoAuth $ \user -> do
+  REST.create $ withUserOrDoAuth $ \user -> trace "create" $ do
     let ctype = "text/json"
         respJSON403 msg = Response status403 [(hContentType, ctype)] $
                            L8.pack $ "{ \"error\" : " ++
@@ -233,13 +233,16 @@ commentController = do
     liftLIO . withTaskPolicyModule $ insert "comments" ldoc
     indexComs user
 
-  REST.update $ withUserOrDoAuth $ \user -> do
+  REST.update $ withUserOrDoAuth $ \user -> trace "update" $ do
     let ctype = "text/json"
         respJSON403 msg = Response status403 [(hContentType, ctype)] $
                            L8.pack $ "{ \"error\" : " ++
                                        show (msg :: String) ++ "}"
     doc <- include ["_id", "author", "proj", "text", "parent"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
-    liftLIO $ withTaskPolicyModule $ save "comments" doc
+    sid <- lookup "_id" doc
+    let cid = read sid :: ObjectId
+    let newdoc = merge [ "_id" -: cid ] doc
+    liftLIO $ withTaskPolicyModule $ save "comments" newdoc
     indexComs user
 
 indexComs username = do

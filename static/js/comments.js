@@ -3,7 +3,7 @@ $(document).ready(function() {
 
   $("#newCommentForm").submit(function() {
     var dataString = $("#newCommentForm").serialize();
-    var pid = $("#post").val();
+    var pid = $("#proj").val();
     var text = $("#text").val();
     if ((text != '') && (text != null) && (text != "undefined")) {
       $.ajax({
@@ -46,14 +46,14 @@ function handle_edit(oldcomment, id) {
   if (url.length < 2) {
     return false;
   }
-  var postid = url[url.length - 2]; // url is x.org/postid/comments
+  var projid = url[url.length - 2]; // url is x.org/projid/comments
   var parent = $("#p"+id).text();
   var form =
   $('<form action="#">'+
     '<input type="hidden" name="_id" value="' + id + '"/>'+
-    '<input type="hidden" name="method" value="PUT"/>'+
+    '<input type="hidden" name="method" value="POST"/>'+
     '<input type="hidden" name="parent" value="' + parent + '"/>' +
-    '<input type="hidden" name="post" value="' + postid + '"/>'+
+    '<input type="hidden" name="proj" value="' + projid + '"/>'+
     '<input type="hidden" name="author" value="' + username + '"/>'+
     '<input type="hidden" name="edited" value="True"/>'+
     '<textarea name="text"></textarea><br>'+
@@ -118,11 +118,11 @@ function handle_reply(parent) {
   if (url.length < 2) {
     return false;
   }
-  var postid = url[url.length - 2]; // url is lbh.org/postid/comments
+  var projid = url[url.length - 2]; // url is lbh.org/projid/comments
   var form =
   $('<form action="#">'+
     '<input type="hidden" name="parent" value="' + id + '"/>'+
-    '<input type="hidden" name="post" value="' + postid + '"/>'+
+    '<input type="hidden" name="proj" value="' + projid + '"/>'+
     '<input type="hidden" name="author" value="' + username + '"/>'+
     '<textarea name="text"></textarea><br>'+
     '<input type="submit" value="Reply"/>'+
