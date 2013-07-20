@@ -64,13 +64,13 @@ server = mkRouter $ do
   post "/projects/edit" $ do
     pdoc <- include ["_id", "title", "desc", "members", "completed", "startTime", "endTime", "leaders"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
     let pid = read (drop 5 $ at "_id" pdoc) :: ObjectId
-    mloldproj <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pId] "projects"
+    mloldproj <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
     oldproj <- liftLIO $ unlabel $ fromJust mloldproj
     let members = splitOn (" " :: String) ("members" `at` pdoc)
     let leaders = splitOn (" " :: String) ("leaders" `at` pdoc)
     let project = merge [ "members" -: (members :: [String])
                         , "leaders" -: (leaders :: [String])
-                        , "_id" -: pId
+                        , "_id" -: pid
                         , "tasks" -: (("tasks" `at` oldproj) :: [ObjectId]) ]
                         pdoc 
     liftLIO $ withTaskPolicyModule $ save "projects" project
