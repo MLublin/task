@@ -18,10 +18,11 @@ $(document).ready(function() {
                     break;
                  }
             }
+            var idstr = '#' + $(this).val();
             if(showIt){
-                $(this).show();
+                $(idstr).show();
             } else {
-                $(this).hide();
+                $(idstr).hide();
             }
         });
     });
