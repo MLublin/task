@@ -71,6 +71,7 @@ data User = User {
   userName :: UserName,
   userNotifs :: [String],
   userTasks :: [ObjectId],
+  userInvites :: [ObjectId],
   userProjects :: [ObjectId]
 } deriving (Show, Eq, Typeable)
 
@@ -80,18 +81,21 @@ instance DCRecord User where
     name <- lookup "name" doc
     notifs <- lookup "notifs" doc
     let projects = trace "lookup projs" $ at "projects" doc
+    let invites = trace "lookup projs" $ at "invites" doc
     let tasks = trace "lookup tasks" $ at "tasks" doc
     trace "returning user" $ return User { userId = uid
                 , userName = name
                 , userNotifs = notifs
                 , userTasks = tasks
+                , userInvites = invites
                 , userProjects = projects }
 
   toDocument u = trace "toDoc user" $
     [ "_id"  -: userId u
     , "name" -: userName u
     , "notifs" -: userNotifs u
-    , "tasks" -: userTasks u 
+    , "tasks" -: userTasks u
+    , "invites" -: userInvites u
     , "projects" -: userProjects u]
 
   recordCollection _ = "tasks"

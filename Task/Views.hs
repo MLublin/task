@@ -61,11 +61,16 @@ displayProjectPage user tasks project = do
   script ! src "http://code.jquery.com/jquery-latest.min.js" $ ""
   script ! src "/static/js/tasks.js" $ ""
   div $ h1 ! class_ "top" ! id "name" $ toHtml $ projectTitle project
+  let pid = show $ fromJust $ projectId project
+  div $ do
+    let act = "/projects/" ++ pid ++ "/leave"
+    form ! id "leaveproj" ! action (toValue act) ! method "post" $ do
+      button ! type_ "submit" $ "Leave project"
   if (userName user `elem` projectLeaders project) 
-    then p $ a ! href (toValue ("/projects/" ++ (show $ fromJust $ projectId project) ++ "/edit")) $ "Edit Project"
+    then p $ a ! href (toValue ("/projects/" ++ pid ++ "/edit")) $ "Edit Project"
     else ""
   if (userName user `elem` projectLeaders project) 
-    then p $ a ! href (toValue ("/projects/" ++ (show $ fromJust $ projectId project) ++ "/remove")) $ "Remove Project"
+    then p $ a ! href (toValue ("/projects/" ++ pid ++ "/remove")) $ "Remove Project"
     else ""
   div $ p ! class_ "top" ! id "desc" $ toHtml $ projectDesc project
   div $ do

@@ -113,9 +113,8 @@ server = mkRouter $ do
     alldocs <- liftLIO $ withTaskPolicyModule $ findOne $ select [] "users"
     omemDocs <- liftLIO $ unlabel $ fromJust alldocs
     let memDocs = [omemDocs]
-    --let memDocs = trace ("alldocs: " ++ show alldocs) $ filter (\u -> (("name" `at` u) :: UserName) `elem` members) alldocs
-    trace ("memdocs: " ++ show memDocs) $ liftLIO $ withTaskPolicyModule $ addNotifs memDocs ("You were added to a new project: " ++ ("title" `at` project) ++ " by " ++ (T.unpack $ fromJust user))
     liftLIO $ withTaskPolicyModule $ trace "addProjects" $ addProjects memDocs pid
+    trace ("memdocs: " ++ show memDocs) $ liftLIO $ withTaskPolicyModule $ addNotifs memDocs ("You were added to a new project: " ++ ("title" `at` project) ++ " by " ++ (T.unpack $ fromJust user))
     respond $ redirectTo ("/projects/" ++ show pid)
 
   get "/projects/:pid/edit" $ withUserOrDoAuth $ \user -> do
