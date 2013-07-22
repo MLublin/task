@@ -42,19 +42,28 @@ displayHomePage :: UserName -> [Project] -> [String] -> Html
 displayHomePage user projects notifs = do
   h1 $ toHtml $ "Welcome " ++ T.unpack user
   div ! id "notifications" $ do
-    h2 $ "Notifications"
-    ul $ forM_ notifs $ \notif -> li $ toHtml notif
+    if (notifs == [] )
+      then ""
+      else do
+        h2 $ "Notifications"
+        ul $ forM_ notifs $ \notif -> li $ toHtml notif
   p $ a ! href "/projects/new" $ "Create new project"
-  h2 $ "Projects In Progress"
   let unfinished = filter (not . projectCompleted) projects
-  ul $ forM_ unfinished $ \proj -> do
-    let pid = show $ fromJust $ projectId proj
-    li $ a ! href (toValue ("/projects/" ++ pid)) $ toHtml (projectTitle proj)
-  h2 $ "Completed Projects"
+  if (unfinished == []) 
+    then ""
+    else do 
+      h2 $ "Projects In Progress"
+      ul $ forM_ unfinished $ \proj -> do
+        let pid = show $ fromJust $ projectId proj
+        li $ a ! href (toValue ("/projects/" ++ pid)) $ toHtml (projectTitle proj)
   let finished = filter (projectCompleted) projects
-  ul $ forM_ finished $ \proj -> do
-    let pid = show $ fromJust $ projectId proj
-    li $ a ! href (toValue ("/projects/" ++ pid)) $ toHtml (projectTitle proj)
+  if (finished == [])
+    then ""
+    else do 
+      h2 $ "Completed Projects"
+      ul $ forM_ finished $ \proj -> do
+        let pid = show $ fromJust $ projectId proj
+        li $ a ! href (toValue ("/projects/" ++ pid)) $ toHtml (projectTitle proj)
 
 displayProjectPage :: User -> [Task] -> Project -> Html
 displayProjectPage user tasks project = do
@@ -96,26 +105,38 @@ displayProjectPage user tasks project = do
       p $ do
         label ! for "priority" $ "Task priority: "
         select ! name "priority" $ do
-          option ! value "1" $ "Low"
+          option ! value "3" $ "Low"
           option ! value "2" $ "Medium"
-          option ! value "3" $ "High"
+          option ! value "1" $ "High"
       input ! type_ "hidden" ! name "project" ! value (toValue pid)
       input ! type_ "hidden" ! name "completed" ! value "False"
       button ! type_ "submit" $ "Add Task"
   else ""
   div $ do
-    h3 $ "My tasks"
     let mytasks = filter (\t -> (userName user) `elem` (taskMembers t)) tasks
-    h4 $ "In progress:"
+    if (mytasks == [])
+      then ""
+      else h3 $ "My tasks"
     let incomplete = sortBy (comparing taskPriority) $ filter (not . taskCompleted) mytasks
-    ul $ forM_ incomplete $ \task -> showTask task
-    h4 $ "Completed:"
+    if (incomplete == [])
+      then ""
+      else do
+        h4 $ "In progress:"
+        ul $ forM_ incomplete $ \task -> showTask task
     let complete = sortBy (comparing taskPriority) $ filter taskCompleted mytasks
-    ul $ forM_ complete $ \task -> showTask task
+    if (complete == []) 
+      then "" 
+      else do
+        h4 $ "Completed:"
+        ul $ forM_ complete $ \task -> showTask task
   div $ do
-    h3 $ "Other tasks"
     let otasks = filter (\t -> not $ (userName user) `elem` (taskMembers t)) tasks
-    ul $ forM_ otasks $ \task -> li $ toHtml $ (taskName task ++ ": " ++ (showStr (taskMembers task) ""))
+    if (otasks == [])
+      then ""
+      else do
+        h3 $ "Other tasks"
+        ul $ forM_ otasks $ \task -> li $ toHtml $ (taskName task ++ ": " ++ (showStr (taskMembers task) ""))
+  h1 $ "Project Chat"
   div $ do
     let pid = show $ fromJust $ projectId project
     iframe ! height "600" ! width "500" ! id "commentframe" ! src (toValue ("/" ++ pid ++ "/comments")) $ ""  -- todo: set height/width in css file
@@ -237,7 +258,6 @@ newUser user = trace "newUser" $ do
 
 showPage :: [Comment] -> UserName -> ObjectId -> Html
 showPage comments user pid = do
-  h1 $ "Comments"
   li ! id "username" $ toHtml user
   script ! src "http://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.js" $ ""
   script ! src "http://code.jquery.com/jquery-1.10.1.min.js" $ ""

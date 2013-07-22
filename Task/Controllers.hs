@@ -54,7 +54,7 @@ server = mkRouter $ do
         let pids = userProjects u
         mprojects <- liftLIO $ withTaskPolicyModule $ mapM (findBy "projects" "_id") pids 
         let projects = map fromJust mprojects
-        respond $ respondHtml "Projects" $ displayHomePage user projects (userNotifs u)
+        respond $ respondHtml "Projects" $ displayHomePage user projects (take 5 $ userNotifs u)
  
   get "/projects/new" $ trace "/projects/new" $ withUserOrDoAuth $ \user -> do
     allUserdocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
@@ -110,11 +110,12 @@ server = mkRouter $ do
                         , "tasks" -: ([] :: [ObjectId])]
                         pdoc 
     pid <- liftLIO $ withTaskPolicyModule $ insert "projects" project
-    alldocs <- liftLIO $ withTaskPolicyModule $ findOne $ select [] "users"
-    omemDocs <- liftLIO $ unlabel $ fromJust alldocs
-    let memDocs = [omemDocs]
+    alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
+    let memDocs = filter (\doc -> ("name" `at` doc) `elem` members) alldocs 
     liftLIO $ withTaskPolicyModule $ trace "addProjects" $ addProjects memDocs pid
-    trace ("memdocs: " ++ show memDocs) $ liftLIO $ withTaskPolicyModule $ addNotifs memDocs ("You were added to a new project: " ++ ("title" `at` project) ++ " by " ++ (T.unpack $ fromJust user))
+    modifieddocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
+    let modifiedMemDocs = filter (\doc -> ("name" `at` doc) `elem` members) modifieddocs 
+    liftLIO $ withTaskPolicyModule $ addNotifs modifiedMemDocs ("You were added to a new project: " ++ ("title" `at` project) ++ " by " ++ (T.unpack $ fromJust user))
     respond $ redirectTo ("/projects/" ++ show pid)
 
   get "/projects/:pid/edit" $ withUserOrDoAuth $ \user -> do
