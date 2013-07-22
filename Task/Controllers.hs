@@ -139,6 +139,25 @@ server = mkRouter $ do
     liftLIO $ withTaskPolicyModule $ removeProj projmembers pid
     respond $ redirectTo "/"
 
+  post "/projects/:pid/leave" $ withUserOrDoAuth $ \user -> do
+    (Just sid) <- queryParam "pid"
+    let pid = read (S8.unpack sid) :: ObjectId
+    mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
+    pdoc <- liftLIO $ unlabel $ fromJust mlpdoc
+    let oldmems = "members" `at` pdoc
+    let oldleads = "leaders" `at` pdoc
+    let newmems = filter (\m -> m /= user) oldmems
+    let newleads = filter (\m -> m /= user) oldleads
+    let newdoc = merge ["members" -: newmems, "leaders" -: newleads] pdoc
+    liftLIO $ withTaskPolicyModule $ save "projects" newdoc
+    mludoc <- liftLIO $ withTaskPolicyModule $ findOne $ select [ "name" -: user ] "users"
+    udoc <- liftLIO $ unlabel $ fromJust mludoc 
+    let oldprojs = "projects" `at` udoc
+    let newprojs = filter (\p -> p /= pid) oldprojs
+    let newdoc = merge ["projects" -: newprojs] udoc
+    liftLIO $ withTaskPolicyModule $ save "users" newdoc
+    respond $ redirectTo "/"
+
 
 -- Tasks -----
 
