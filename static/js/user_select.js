@@ -1,5 +1,4 @@
 $(document).ready(function() {
-    $('.leaderCheckbox').hide();
     console.log("checkbox script loaded");
     $('.memberCheckbox').click(function() {
         var selected = [];
