@@ -1,15 +1,10 @@
 
 $(document).ready(function() {
 
-  console.log("js running!");
-  console.log("comment form: " + $(".commentframe").contents().find("#newCommentForm"));
-
-  $(".commentframe").contents().find("#newCommentForm").submit(function(e) {
-    e.preventDefault();
-    console.log("new comment form submitted");
-    var dataString =$(".commentframe").contents().find("#newCommentForm").serialize();
-    var pid =$(".commentframe").contents().find("#proj").val();
-    var text =$(".commentframe").contents().find("#text").val();
+  $("#newCommentForm").submit(function() {
+    var dataString = $("#newCommentForm").serialize();
+    var pid = $("#proj").val();
+    var text = $("#text").val();
     if ((text != '') && (text != null) && (text != "undefined")) {
       $.ajax({
         dataType: "json",
@@ -17,25 +12,23 @@ $(document).ready(function() {
         url: "",
         data: dataString,
         success: function(data) {
-          console.log("new comment form success function called");
           var array = data;
           var newcomment = array[array.length - 1];
           showComment(newcomment, "#root");
-          console.log("new comment form success function: returning data");
           return data;
         },
       });
     }
     return false;
   });
-  $(".commentframe").contents().find(".reply-button").click(function() {
+  $(".reply-button").click(function() {
     var parent = $(this).parent()[0]; // returns a div
     handle_reply(parent);
     $(this).remove();
   });
-  $(".commentframe").contents().find(".edit-button").click(function() {
+  $(".edit-button").click(function() {
     var id = this.id.substring(2);
-    var parent = $(".commentframe").contents().find("#"+id);
+    var parent = $("#"+id);
     handle_edit(parent, id);
     $(this).remove();
   });
@@ -45,7 +38,7 @@ $(document).ready(function() {
 Display a form allowing user to edit a comment, and provide a callback function
 */
 function handle_edit(oldcomment, id) {
-  var username =$(".commentframe").contents().find("#username").text();
+  var username = $("#username").text();
   if (username == "Anonymous") {
     return false;
   }
@@ -54,11 +47,11 @@ function handle_edit(oldcomment, id) {
     return false;
   }
   var projid = url[url.length - 2]; // url is x.org/projid/comments
-  var parent =$(".commentframe").contents().find("#p"+id).text();
+  var parent = $("#p"+id).text();
   var form =
   $('<form action="#">'+
     '<input type="hidden" name="_id" value="' + id + '"/>'+
-    '<input type="hidden" name="method" value="PUT"/>'+
+    '<input type="hidden" name="method" value="POST"/>'+
     '<input type="hidden" name="parent" value="' + parent + '"/>' +
     '<input type="hidden" name="proj" value="' + projid + '"/>'+
     '<input type="hidden" name="author" value="' + username + '"/>'+
@@ -67,7 +60,7 @@ function handle_edit(oldcomment, id) {
     '<input type="submit" value="Edit"/>'+
     '</form>').appendTo("#text"+id);
 
- $(".commentframe").contents().find("#text"+id).append(form);
+  $("#text"+id).append(form);
 
   form.submit(function(event) {
     event.preventDefault();
@@ -88,12 +81,12 @@ function handle_edit(oldcomment, id) {
             target = data[n];
           }
         }
-        var destination =$(".commentframe").contents().find("#text"+id);
+        var destination = $("#text"+id);
         var html = 
         $('<blockquote id="text' + id + '">' + 
           target.text.replace(/\r?\n/g, '<br />') + 
           '</blockquote>').appendTo(destination);
-       $(".commentframe").contents().find(destination).replaceWith(html);
+        $(destination).replaceWith(html);
         f.remove();
         return false;
       }
@@ -107,19 +100,19 @@ Replace the old comment with the updated comment
 */
 function updateComment(comment) {
   var cid = comment._id;
-  var destination =$(".commentframe").contents().find("#text"+cid);
+  var destination = $("#text"+cid);
   var html = 
   $('<blockquote id="text' + cid + '">' + 
     comment.text.replace(/\r?\n/g, '<br />') + 
     '</blockquote>').appendTo(destination);
- $(".commentframe").contents().find(destination).replaceWith(html);
+  $(destination).replaceWith(html);
 }
 
 /**
 Display a form allowing user to submit a reply, and provide a callback function
 */
 function handle_reply(parent) {
-  var username =$(".commentframe").contents().find("#username").text();
+  var username = $("#username").text();
   var id = parent.id; // in reply to
   var url = document.URL.split("/");
   if (url.length < 2) {
@@ -166,7 +159,7 @@ function showComment(comment, destination) {
   var timestamp = cid.toString().substring(0,8);
   var date = formatDate(new Date(parseInt(timestamp, 16) * 1000));
   var buttons = '<button class="reply-button" id="rb' + cid + '">Reply</button><br>';
-  var username =$(".commentframe").contents().find("#username").text();
+  var username = $("#username").text();
   if (username == comment.author && username != "Anonymous") {
     buttons = 
       '<button class="edit-button2" id="eb' + cid + '">Edit</button><br>'+
@@ -181,16 +174,16 @@ function showComment(comment, destination) {
     '<li id="p' + comment._id + '">' + comment.parent + '</li>' +
     buttons +
     '</div>').appendTo(destination);
- $(".commentframe").contents().find(destination).append(html);
+  $(destination).append(html);
 
- $(".commentframe").contents().find(".reply-button").click(function() {
+  $(".reply-button").click(function() {
     var parent = $(this).parent()[0];
     handle_reply(parent);
     $(this).remove();
   });
- $(".commentframe").contents().find(".edit-button2").click(function() {
+  $(".edit-button2").click(function() {
     var id = this.id.substring(2);
-    var parent = $(".commentframe").contents().find("#"+id);
+    var parent = $("#"+id);
     handle_edit(parent, id);
     $(this).remove();
   });

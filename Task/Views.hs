@@ -112,7 +112,8 @@ displayProjectPage user tasks project = do
   div $ do
     let pid = show $ fromJust $ projectId project
     let fid = "comments" ++ pid
-    iframe ! id (toValue fid) ! class_ "commentframe" ! src (toValue ("/" ++ pid ++ "/comments")) $ ""
+    --iframe ! id (toValue fid) ! class_ "commentframe" ! src (toValue ("/" ++ pid ++ "/comments")) $ ""
+    iframe ! height "600" ! width "500" ! id "commentframe" ! src (toValue ("/" ++ pid ++ "/comments")) $ ""
   div $ do
     a ! href "/" $ "Home Page"
 
@@ -216,10 +217,12 @@ newUser user = trace "newUser" $ do
 
 showPage :: [Comment] -> UserName -> ObjectId -> Html
 showPage comments user pid = do
+  h1 $ "Comments"
   li ! id "username" $ toHtml user
   script ! src "http://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.js" $ ""
   script ! src "http://code.jquery.com/jquery-1.10.1.min.js" $ ""
   script ! src "/static/js/comments.js" $ ""
+  stylesheet "/static/css/comments.css"
   newComment user pid Nothing -- show form for making new comment
   indexComments comments pid user -- index all comments
 
