@@ -203,7 +203,7 @@ addNotifs memDocs notif = trace ("addNotifs called; memdocs: " ++ show memDocs) 
       let curNotifs = "notifs" `at` doc
       let newNotifs = notif:curNotifs
       let newDoc = merge ["notifs" -: newNotifs] doc
-      trace ("newDoc: " ++ show newDoc) $ saveRecord "users" newDoc
+      trace ("newDoc: " ++ show newDoc) $ save "users" newDoc
       trace (show $ length memDocs) $ addNotifs (tail memDocs) notif
 
 addTasks :: [HsonDocument] -> ObjectId -> DBAction () -- add task to each member's document
