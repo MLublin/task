@@ -172,7 +172,10 @@ server = mkRouter $ do
     let members = "members" `at` tdoc
     allusers <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
     let memdocs = filter (\u -> (("name" `at` u) :: UserName) `elem` members) allusers
-    liftLIO $ withTaskPolicyModule $ addNotifs memdocs (("A task was marked as completed: " ++ ("name" `at` tdoc) ++ " in the project: " ++ ("project" `at` tdoc)) :: String)
+    let projId = trace ("1") $ read ("project" `at` tdoc) :: ObjectId
+    mlproj <- trace (show projId) $ liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: (projId :: ObjectId)] "projects"
+    proj <- trace ("3") $ liftLIO $ unlabel $ fromJust mlproj
+    liftLIO $ withTaskPolicyModule $ addNotifs memdocs (("A task was marked as completed: " ++ ("name" `at` tdoc) ++ " in the project: " ++ ("title" `at` proj)) :: String)
     liftLIO $ withTaskPolicyModule $ save "tasks" newtdoc
     redirectBack
 

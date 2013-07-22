@@ -229,9 +229,9 @@ showTask task = do
     br
     "Priority: "
     case taskPriority task of
-      "1" -> "Low"
+      "1" -> "High"
       "2" -> "Medium"
-      "3" -> "High"
+      "3" -> "Low"
       _ -> "Not set"
     br
     toHtml ("Members: " ++ (showStr (taskMembers task) ""))
