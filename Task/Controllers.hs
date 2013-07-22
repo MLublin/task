@@ -1,5 +1,6 @@
 {-# LANGUAGE OverloadedStrings #-}
 module Task.Controllers where
+
 import Prelude hiding (lookup)
 import qualified Data.ByteString.Lazy as L
 import qualified Data.ByteString.Lazy.Char8 as L8
@@ -145,7 +146,7 @@ server = mkRouter $ do
   post "/projects/:pid/tasks" $ trace "Post/Task" $ do
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
-    taskdoc <- include ["name", "members", "project", "completed"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
+    taskdoc <- include ["name", "members", "project", "completed", "priority"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
     let members = trace "line 63" $ splitOn (" " :: String) ("members" `at` taskdoc)
     let task = trace "line 64" $ merge ["members" -: (members :: [String])] taskdoc 
     tid <- liftLIO $ withTaskPolicyModule $ insert "tasks" task

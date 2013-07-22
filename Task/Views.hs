@@ -16,7 +16,6 @@ import Hails.Web.Frank
 import Hails.Web.Controller hiding (body)
 import Hails.Data.Hson
 import Hails.Web.User
-import Hails.Database
 import LIO hiding (label)
 import LIO.DCLabel
 import Data.Maybe
@@ -84,8 +83,14 @@ displayProjectPage user tasks project = do
         label ! for "name" $ "Task name: "
         input ! type_ "text" ! name "name"
       p $ do
-        label ! for "members" $ "Invite members"
+        label ! for "members" $ "Invite members: "
         input ! type_ "text" ! name "members"
+      p $ do
+        label ! for "priority" $ "Task priority: "
+        select ! name "priority" $ do
+          option ! value "1" $ "Low"
+          option ! value "2" $ "Medium"
+          option ! value "3" $ "High"
       input ! type_ "hidden" ! name "project" ! value (toValue pid)
       input ! type_ "hidden" ! name "completed" ! value "False"
       button ! type_ "submit" $ "Add Task"
@@ -94,33 +99,25 @@ displayProjectPage user tasks project = do
     h3 $ "My tasks"
     let mytasks = filter (\t -> (userName user) `elem` (taskMembers t)) tasks
     h4 $ "In progress:"
-    let incomplete = filter (not . taskCompleted) mytasks
-    ul $ forM_ incomplete $ \task -> do
-      let tid = toValue $ show $ fromJust $ taskId task
-      li ! id tid ! class_ "task" $ toHtml $ (taskName task ++ ": " ++ (showStr (taskMembers task) ""))
-      checkTask task
+    let incomplete = sortBy (comparing taskPriority) $ filter (not . taskCompleted) mytasks
+    ul $ forM_ incomplete $ \task -> showTask task
     h4 $ "Completed:"
-    let complete = filter taskCompleted mytasks
-    ul $ forM_ complete $ \task -> do
-      let tid = toValue $ show $ fromJust $ taskId task
-      li ! id tid ! class_ "task" $ toHtml $ (taskName task ++ ": " ++ (showStr (taskMembers task) ""))
-      checkTask task
+    let complete = sortBy (comparing taskPriority) $ filter taskCompleted mytasks
+    ul $ forM_ complete $ \task -> showTask task
   div $ do
     h3 $ "Other tasks"
     let otasks = filter (\t -> not $ (userName user) `elem` (taskMembers t)) tasks
     ul $ forM_ otasks $ \task -> li $ toHtml $ (taskName task ++ ": " ++ (showStr (taskMembers task) ""))
   div $ do
     let pid = show $ fromJust $ projectId project
-    let fid = "comments" ++ pid
-    --iframe ! id (toValue fid) ! class_ "commentframe" ! src (toValue ("/" ++ pid ++ "/comments")) $ ""
-    iframe ! height "600" ! width "500" ! id "commentframe" ! src (toValue ("/" ++ pid ++ "/comments")) $ ""
+    iframe ! height "600" ! width "500" ! id "commentframe" ! src (toValue ("/" ++ pid ++ "/comments")) $ ""  -- todo: set height/width in css file
   div $ do
     a ! href "/" $ "Home Page"
 
 newProject :: UserName -> [UserName] -> Html
 newProject user members = do
   script ! src "http://code.jquery.com/jquery-latest.min.js" $ ""
-  script ! src "/static/js/user_select.js" $ ""
+  --script ! src "/static/js/user_select.js" $ ""
   form ! id "newprojectform" ! action "/projects" ! method "post" $ do
     p $ do
       label ! for "title" $ "Project title: "
@@ -130,19 +127,17 @@ newProject user members = do
       textarea ! name "desc" $ ""
 
     div ! id "memberSelect" $ do
-      p $ "select members for this project"
-      --label ! for "members" $ "Project members: "
+      p $ "Select members for this project:"
       forM_ members $ \member -> do
                           toHtml $ T.unpack member  
                           input ! type_ "checkbox" ! class_ "memberCheckbox" ! name "members[]" ! value (toValue member) 
       
     div ! id "leaderSelect" $ do
-      p $ "select leaders for this project"
-      --label ! for "members" $ "Project members: "
+      p $ "select leaders for this project:"
       forM_ members $ \member -> do
-                          div ! class_ (toValue $ T.unpack member) $ do
+                          div ! id (toValue $ T.unpack member) $ do
                             toHtml $ T.unpack member  
-                            input ! type_ "checkbox" ! class_ (toValue ("leaderCheckbox " ++ (T.unpack member))) ! name "leaders[]" ! value (toValue member) 
+                            input ! type_ "checkbox" ! class_ "leaderCheckbox" ! name "leaders[]" ! value (toValue member) 
     p $ do
       label ! for "startTime" $ "Project start time: "
       input ! type_ "date" ! name "startTime"
@@ -196,6 +191,22 @@ checkTask task = trace "checkTask" $ do
   let act = "/tasks/" ++ tid ++ "/edit"
   form ! id fid ! action (toValue act) ! method "post" $ do
     input ! type_ "hidden" ! name "completed" ! value "True"
+
+showTask :: Task -> Html
+showTask task = do
+  let tid = toValue $ show $ fromJust $ taskId task
+  li ! id tid ! class_ "task" $ do
+    toHtml $ taskName task
+    br
+    "Priority: "
+    case taskPriority task of
+      "1" -> "Low"
+      "2" -> "Medium"
+      "3" -> "High"
+      _ -> "Not set"
+    br
+    toHtml ("Members: " ++ (showStr (taskMembers task) ""))
+  checkTask task
 
 -- Users -----
 

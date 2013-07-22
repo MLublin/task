@@ -36,6 +36,7 @@ data Task = Task {
   taskName :: String,
   taskMembers :: [UserName],
   taskCompleted :: Bool,
+  taskPriority :: String,
   taskProject :: ObjectId
 } deriving (Show, Eq, Typeable)
 
@@ -45,11 +46,13 @@ instance DCRecord Task where
     name <- lookup "name" doc
     members <- lookup "members" doc
     completed <- trace "lookup completed" $ lookup "completed" doc
+    priority <- trace "lookup priority" $ lookup "priority" doc
     project <- trace "lookup proj" $ lookup "project" doc
     trace "returning task" $ return Task { taskId = tid
                 , taskName = name
                 , taskMembers = members
                 , taskCompleted = read completed
+                , taskPriority = priority
                 , taskProject = read project }
 
   toDocument t =
@@ -57,6 +60,7 @@ instance DCRecord Task where
     , "name" -: taskName t
     , "members" -: (taskMembers t :: [UserName])
     , "completed" -: taskCompleted t
+    , "priority" -: taskPriority t
     , "project" -: taskProject t]
 
   recordCollection _ = "tasks"
