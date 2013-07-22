@@ -135,9 +135,9 @@ newProject user members = do
     div ! id "leaderSelect" $ do
       p $ "select leaders for this project:"
       forM_ members $ \member -> do
-                          div ! id (toValue $ T.unpack member) $ do
+                          div ! class_ (toValue ("leaderCheckbox " ++ (T.unpack member))) $ do
                             toHtml $ T.unpack member  
-                            input ! type_ "checkbox" ! class_ "leaderCheckbox" ! name "leaders[]" ! value (toValue member) 
+                            input ! type_ "checkbox" ! class_ (toValue ("leaderCheckbox " ++ (T.unpack member))) ! name "leaders[]" ! value (toValue member) 
     p $ do
       label ! for "startTime" $ "Project start time: "
       input ! type_ "date" ! name "startTime"

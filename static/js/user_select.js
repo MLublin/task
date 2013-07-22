@@ -16,7 +16,6 @@ $(document).ready(function() {
                  if($(this).val() == selected[i]){
                     console.log("show " + $(this).val());
                     showIt = true;
-                    $(this).show();
                     break;
                  }
             }
