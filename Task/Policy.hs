@@ -33,6 +33,7 @@ instance PolicyModule TaskPolicyModule where
           readers ==> unrestricted
           writers ==> unrestricted
         field "name" key
+        field "_id" key
       collection "tasks" $ do
         access $ do
           readers ==> unrestricted

@@ -69,6 +69,7 @@ instance DCRecord Task where
 data User = User {
   userId :: Maybe ObjectId,
   userName :: UserName,
+  userNotifs :: [String],
   userTasks :: [ObjectId],
   userProjects :: [ObjectId]
 } deriving (Show, Eq, Typeable)
@@ -77,16 +78,19 @@ instance DCRecord User where
   fromDocument doc = trace "fromDoc user" $ do
     let uid = lookupObjIdh "_id" doc
     name <- lookup "name" doc
+    notifs <- lookup "notifs" doc
     let projects = trace "lookup projs" $ at "projects" doc
     let tasks = trace "lookup tasks" $ at "tasks" doc
     trace "returning user" $ return User { userId = uid
                 , userName = name
+                , userNotifs = notifs
                 , userTasks = tasks
                 , userProjects = projects }
 
   toDocument u = trace "toDoc user" $
     [ "_id"  -: userId u
     , "name" -: userName u
+    , "notifs" -: userNotifs u
     , "tasks" -: userTasks u 
     , "projects" -: userProjects u]
 
