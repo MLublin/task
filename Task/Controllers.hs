@@ -54,7 +54,7 @@ server = mkRouter $ do
         let pids = userProjects u
         mprojects <- liftLIO $ withTaskPolicyModule $ mapM (findBy "projects" "_id") pids 
         let projects = map fromJust mprojects
-        respond $ respondHtml "Projects" $ displayHomePage user projects
+        respond $ respondHtml "Projects" $ displayHomePage user projects (userNotifs u)
  
   get "/projects/new" $ trace "/projects/new" $ withUserOrDoAuth $ \user -> do
     allUserdocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"

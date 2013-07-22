@@ -38,9 +38,12 @@ import Task.Models
 
 -- Projects -----
 
-displayHomePage :: UserName -> [Project] -> Html
-displayHomePage user projects = do
+displayHomePage :: UserName -> [Project] -> [String] -> Html
+displayHomePage user projects notifs = do
   h1 $ toHtml $ "Welcome " ++ T.unpack user
+  div ! id "notifications" $ do
+    h2 $ "Notifications"
+    ul $ forM_ notifs $ \notif -> li $ toHtml notif
   p $ a ! href "/projects/new" $ "Create new project"
   h2 $ "Projects In Progress"
   let unfinished = filter (not . projectCompleted) projects
