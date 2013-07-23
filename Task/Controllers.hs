@@ -98,7 +98,11 @@ server = mkRouter $ do
             let tids = projectTasks proj
             mtasks <- liftLIO $ withTaskPolicyModule $ mapM (findBy "tasks" "_id") tids 
             let tasks = trace (show mtasks) $ map fromJust mtasks
-            respond $ respondHtml "Tasks" $ displayProjectPage u tasks proj
+            matype <- requestHeader "accept"
+            case matype of
+              Just atype | "application/json" `S8.isInfixOf` atype ->
+                 return $ ok "application/json" (encode $ toJSON tasks)
+              _ -> return $ respondHtml "Tasks" $ displayProjectPage u tasks proj
 
   post "/projects" $ do
     user <- getHailsUser
@@ -128,7 +132,7 @@ server = mkRouter $ do
     liftLIO $ withTaskPolicyModule $ addNotifs memDocs ((T.unpack user) ++ " edited a project: " ++ (projectTitle proj))
     respond $ respondHtml "Edit" $ editProject proj user
   
-  get "/projects/:pid/remove" $ withUserOrDoAuth $ \user -> do
+  post "/projects/:pid/remove" $ withUserOrDoAuth $ \user -> do
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
     mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
@@ -182,6 +186,10 @@ server = mkRouter $ do
   post "/projects/:pid/tasks" $ trace "Post/Task" $ do
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
+    let ctype = "text/json"
+        respJSON403 msg = Response status403 [(hContentType, ctype)] $
+                           L8.pack $ "{ \"error\" : " ++
+                                       show (msg :: String) ++ "}"
     taskdoc <- include ["name", "members", "project", "completed", "priority"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
     let members = trace "line 63" $ splitOn (" " :: String) ("members" `at` taskdoc)
     let task = trace "line 64" $ merge ["members" -: (members :: [String])] taskdoc 
@@ -217,7 +225,7 @@ server = mkRouter $ do
 
 
 addNotifs :: [HsonDocument] -> String -> DBAction () -- add task to each member's document
-addNotifs memDocs notif = trace ("addNotifs called; memdocs: " ++ show memDocs) $ do
+addNotifs memDocs notif = do
   if memDocs == []
     then return ()
     else do
@@ -225,8 +233,8 @@ addNotifs memDocs notif = trace ("addNotifs called; memdocs: " ++ show memDocs) 
       let curNotifs = "notifs" `at` doc
       let newNotifs = notif:curNotifs
       let newDoc = merge ["notifs" -: newNotifs] doc
-      trace ("newDoc: " ++ show newDoc) $ save "users" newDoc
-      trace (show $ length memDocs) $ addNotifs (tail memDocs) notif
+      save "users" newDoc
+      addNotifs (tail memDocs) notif
 
 addTasks :: [HsonDocument] -> ObjectId -> DBAction () -- add task to each member's document
 addTasks memDocs taskId = trace "addTasks called" $ do

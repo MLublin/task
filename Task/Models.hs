@@ -40,15 +40,25 @@ data Task = Task {
   taskProject :: ObjectId
 } deriving (Show, Eq, Typeable)
 
+instance ToJSON Task where
+  toJSON (Task id name mem com pri proj) =
+    object [ "_id"       .= (show $ fromJust id)
+           , "name"      .= name
+           , "members"   .= mem
+           , "completed" .= com
+           , "priority"  .= pri
+           , "project"   .= show proj
+           ]
+
 instance DCRecord Task where
   fromDocument doc = trace "fromDoc task" $ do
     let tid = lookupObjIdh "_id" doc
     name <- lookup "name" doc
     members <- lookup "members" doc
-    completed <- trace "lookup completed" $ lookup "completed" doc
-    priority <- trace "lookup priority" $ lookup "priority" doc
-    project <- trace "lookup proj" $ lookup "project" doc
-    trace "returning task" $ return Task { taskId = tid
+    completed <- lookup "completed" doc
+    priority <- lookup "priority" doc
+    project <- lookup "project" doc
+    return Task { taskId = tid
                 , taskName = name
                 , taskMembers = members
                 , taskCompleted = read completed
@@ -80,9 +90,9 @@ instance DCRecord User where
     let uid = lookupObjIdh "_id" doc
     name <- lookup "name" doc
     notifs <- lookup "notifs" doc
-    let projects = trace "lookup projs" $ at "projects" doc
-    let invites = trace "lookup projs" $ at "invites" doc
-    let tasks = trace "lookup tasks" $ at "tasks" doc
+    let projects = at "projects" doc
+    let invites = at "invites" doc
+    let tasks = at "tasks" doc
     trace "returning user" $ return User { userId = uid
                 , userName = name
                 , userNotifs = notifs
@@ -122,8 +132,8 @@ instance DCRecord Project where
     startTime <- lookup "startTime" doc
     endTime <- lookup "endTime" doc
     leaders <- lookup "leaders" doc
-    tasks <- trace "lookup tasks" $ lookup "tasks" doc
-    desc <- trace "lookup desc" $ lookup "desc" doc
+    tasks <- lookup "tasks" doc
+    desc <- lookup "desc" doc
     trace "returning project" $ return Project { projectId = pid
                    , projectTitle = title
                    , projectMembers = members
