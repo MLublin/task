@@ -129,11 +129,10 @@ displayProjectPage user tasks project = do
       let high = filter (\t -> (taskPriority t) == "1") incomplete
       if (incomplete == [])
         then ""
-        else do
-          h4 $ "In progress:"
-          p ! id "3tasks" $ ul $ forM_ low $ \task -> showTask task
-          p ! id "2tasks" $ ul $ forM_ med $ \task -> showTask task
-          p ! id "1tasks" $ ul $ forM_ high $ \task -> showTask task
+        else h4 $ "In progress:"
+      p ! id "3tasks" $ ul $ forM_ low $ \task -> showTask task
+      p ! id "2tasks" $ ul $ forM_ med $ \task -> showTask task
+      p ! id "1tasks" $ ul $ forM_ high $ \task -> showTask task
     div ! id "complete_tasks" $ do
       let complete = sortBy (comparing taskPriority) $ filter taskCompleted mytasks
       let low = filter (\t -> (taskPriority t) == "3") complete
@@ -141,11 +140,10 @@ displayProjectPage user tasks project = do
       let high = filter (\t -> (taskPriority t) == "1") complete
       if (complete == [])
         then ""
-        else do
-          h4 $ "Completed:"
-          p ! id "3tasks" $ ul $ forM_ low $ \task -> showTask task
-          p ! id "2tasks" $ ul $ forM_ med $ \task -> showTask task
-          p ! id "1tasks" $ ul $ forM_ high $ \task -> showTask task
+        else h4 $ "Completed:"
+      p ! id "3tasks" $ ul $ forM_ low $ \task -> showTask task
+      p ! id "2tasks" $ ul $ forM_ med $ \task -> showTask task
+      p ! id "1tasks" $ ul $ forM_ high $ \task -> showTask task
     div ! id "other_tasks" $ do
       let otasks = filter (\t -> not $ (userName user) `elem` (taskMembers t)) tasks
       if (otasks == [])
