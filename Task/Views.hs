@@ -49,7 +49,7 @@ displayHomePage user projects notifs = do
   div ! id "left" $ do
     h1 $ toHtml $ "Welcome " ++ T.unpack user
     div ! id "projects" $ do
-      p $ a ! href "/projects/new" $ "Create new project"
+      a ! href "/projects/new" ! id "create-project" $ "Create new project"
       let unfinished = filter (not . projectCompleted) projects
       if (unfinished == []) 
         then ""
