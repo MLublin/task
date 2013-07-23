@@ -12,22 +12,6 @@
 
 }
 
-<<<<<<< HEAD
-* {
-  font-family: "Roboto", sans-serif;
-=======
-body {
-    background-color: #2980b9;
-    font-family: "Roboto", sans-serif;
->>>>>>> f11c47bb8b968e2dc591f93b0747eabf6f250606
-}
-
-/*
-h1, h2, h3, h4 {
-  font-family: "Gilda Display", serif;
-}
-*/
-
 #notifications{
     float: right;
     border-style: solid;
@@ -42,9 +26,6 @@ h1, h2, h3, h4 {
 }
 
 
-<<<<<<< HEAD
-}*/
-=======
 #create-project {
     border-radius: 5px;
     border: 2px solid #6495ED;
@@ -57,9 +38,9 @@ h1, h2, h3, h4 {
     display: block;
 }
 
-#create-project:hover{
+#create-project:hover {
     background-color:yellow;
-} 
+}
 
 #notifications ul li {
     list-style-type: square;
@@ -87,4 +68,3 @@ h1, h2, h3, h4 {
     border-width: 5px;
     width: 600px;
 }
->>>>>>> f11c47bb8b968e2dc591f93b0747eabf6f250606

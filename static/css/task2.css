@@ -12,39 +12,34 @@ body {
   color:white;
 }
 
-.left {
-  float: left;
-}
-
 #projectinfo {
-position: relative;
-float: left;
-width: 300px;
-height: 600px;
+  float: left;
+  width: 25%;
 margin-left:50px;
+display:inline-block;
 }
 
 iframe {
   height:600px;
-  width:400px;
-  margin-left:-100px;
-border:none;
-border:0px;
+  border:none;
+  border:0px;
 }
 
 #comments {
-  float:right;
+  width: 33%;
+  float: right;
+  display: inline-block;
 }
 
 #alltasks {
 background-color:#4BA5B4;
 color:white;
-float:left;
-width:500px;
+width: 25%;
 padding-bottom:50px;
 padding-left:30px;
 margin-left:30px;
 font-family: "Roboto", sans-serif;
+display: inline-block;
 }
 
 #alltasks li {
@@ -58,6 +53,11 @@ color:gray;
 button, .button {
 background-color: #1abc9c;
 border:none;
+width:150px;
+height:35px;
+border-radius: 8px;
+color: white;
+font-size: 17px;
 }
 button:hover, button:focus, .button:hover, .button:focus {
 background-color: #48c9b0;
