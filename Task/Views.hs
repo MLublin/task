@@ -130,9 +130,9 @@ displayProjectPage user tasks project = do
       if (incomplete == [])
         then ""
         else h4 ! id "curtasks" $ "In progress:"
-      p ! id "3tasks" $ forM_ low $ \task -> showTask task
-      p ! id "2tasks" $ forM_ med $ \task -> showTask task
       p ! id "1tasks" $ forM_ high $ \task -> showTask task
+      p ! id "2tasks" $ forM_ med $ \task -> showTask task
+      p ! id "3tasks" $ forM_ low $ \task -> showTask task
     div ! id "complete_tasks" $ do
       let complete = sortBy (comparing taskPriority) $ filter taskCompleted mytasks
       let low = filter (\t -> (taskPriority t) == "3") complete
@@ -141,9 +141,9 @@ displayProjectPage user tasks project = do
       if (complete == [])
         then ""
         else h4 $ "Completed:"
-      p ! id "3tasks" $ ul $ forM_ low $ \task -> showTask task
-      p ! id "2tasks" $ ul $ forM_ med $ \task -> showTask task
-      p ! id "1tasks" $ ul $ forM_ high $ \task -> showTask task
+      p ! id "1tasks" $ forM_ high $ \task -> showTask task
+      p ! id "2tasks" $ forM_ med $ \task -> showTask task
+      p ! id "3tasks" $ forM_ low $ \task -> showTask task
     div ! id "other_tasks" $ do
       let otasks = filter (\t -> not $ (userName user) `elem` (taskMembers t)) tasks
       if (otasks == [])
@@ -151,7 +151,7 @@ displayProjectPage user tasks project = do
         else do
           h3 $ "Other tasks"
           ul $ forM_ otasks $ \task -> 
-            li $ toHtml $ (taskName task ++ ": " ++ (showStr (taskMembers task) ""))
+            li $ toHtml $ showTask task
   h1 $ "Project Chat"
   div $ do
     let pid = show $ fromJust $ projectId project
