@@ -40,30 +40,32 @@ import Task.Models
 
 displayHomePage :: UserName -> [Project] -> [String] -> Html
 displayHomePage user projects notifs = do
-  h1 $ toHtml $ "Welcome " ++ T.unpack user
   div ! id "notifications" $ do
     if (notifs == [] )
       then ""
       else do
         h2 $ "Notifications"
         ul $ forM_ notifs $ \notif -> li $ toHtml notif
-  p $ a ! href "/projects/new" $ "Create new project"
-  let unfinished = filter (not . projectCompleted) projects
-  if (unfinished == []) 
-    then ""
-    else do 
-      h2 $ "Projects In Progress"
-      ul $ forM_ unfinished $ \proj -> do
-        let pid = show $ fromJust $ projectId proj
-        li $ a ! href (toValue ("/projects/" ++ pid)) $ toHtml (projectTitle proj)
-  let finished = filter (projectCompleted) projects
-  if (finished == [])
-    then ""
-    else do 
-      h2 $ "Completed Projects"
-      ul $ forM_ finished $ \proj -> do
-        let pid = show $ fromJust $ projectId proj
-        li $ a ! href (toValue ("/projects/" ++ pid)) $ toHtml (projectTitle proj)
+  div ! id "left" $ do
+    h1 $ toHtml $ "Welcome " ++ T.unpack user
+    div ! id "projects" $ do
+      p $ a ! href "/projects/new" $ "Create new project"
+      let unfinished = filter (not . projectCompleted) projects
+      if (unfinished == []) 
+        then ""
+        else do 
+          h2 $ "Projects In Progress"
+          ul $ forM_ unfinished $ \proj -> do
+            let pid = show $ fromJust $ projectId proj
+            li $ a ! href (toValue ("/projects/" ++ pid)) $ toHtml (projectTitle proj)
+      let finished = filter (projectCompleted) projects
+      if (finished == [])
+        then ""
+        else do 
+          h2 $ "Completed Projects"
+          ul $ forM_ finished $ \proj -> do
+            let pid = show $ fromJust $ projectId proj
+            li $ a ! href (toValue ("/projects/" ++ pid)) $ toHtml (projectTitle proj)
 
 displayProjectPage :: User -> [Task] -> Project -> Html
 displayProjectPage user tasks project = do
@@ -357,7 +359,7 @@ stylesheet uri = link ! rel "stylesheet" ! type_ "text/css" ! href (toValue uri)
 
 respondHtml ctitle content = okHtml $ renderHtml $ docTypeHtml $ do
   head $ do
-    stylesheet "/static/css/stylesheet.css"
+    stylesheet "/static/css/task.css"
     title ctitle
   body $ do
     script ! src "/static/js/jquery.js" $ ""

@@ -13,7 +13,6 @@
 }
 
 body {
-  padding-top: 60px;
   font-family: "Roboto", sans-serif;
 }
 
@@ -25,6 +24,10 @@ h1, h2, h3, h4 {
     float: right;
 }
 
-#notifications li {
-
+#left: {
+    float: left;
 }
+
+/*#notifications li {
+
+}*/
