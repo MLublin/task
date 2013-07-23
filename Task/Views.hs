@@ -130,9 +130,9 @@ displayProjectPage user tasks project = do
       if (incomplete == [])
         then ""
         else h4 ! id "curtasks" $ "In progress:"
-      p ! id "3tasks" $ ul $ forM_ low $ \task -> showTask task
-      p ! id "2tasks" $ ul $ forM_ med $ \task -> showTask task
-      p ! id "1tasks" $ ul $ forM_ high $ \task -> showTask task
+      p ! id "3tasks" $ forM_ low $ \task -> showTask task
+      p ! id "2tasks" $ forM_ med $ \task -> showTask task
+      p ! id "1tasks" $ forM_ high $ \task -> showTask task
     div ! id "complete_tasks" $ do
       let complete = sortBy (comparing taskPriority) $ filter taskCompleted mytasks
       let low = filter (\t -> (taskPriority t) == "3") complete

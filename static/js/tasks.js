@@ -54,7 +54,7 @@ $(document).ready(function() {
           $(destination).append(html);
           console.log("appended to destination: " + destination);
           $("#newtaskform").find("input[type=text]").val("");
-          $(".task").click(function() {
+          $("#"+tid).click(function() {
             var complete = confirm("Set task complete?")
             var tid = $(this).attr("id");
             if (complete) $("#form" + tid).submit();
