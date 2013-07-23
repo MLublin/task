@@ -313,7 +313,7 @@ indexComs username = do
   case matype of
     Just atype | "application/json" `S8.isInfixOf` atype ->
        return $ ok "application/json" (encode $ toJSON comments)
-    _ -> return $ respondHtml (toHtml $ T.unpack username) $ showPage comments username pid
+    _ -> return $ respondHtmlC (toHtml $ T.unpack username) $ showPage comments username pid
 
 findAll :: Query -> DBAction [HsonDocument]
 findAll q = do
