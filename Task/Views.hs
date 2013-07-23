@@ -117,11 +117,11 @@ displayProjectPage user tasks project = do
       input ! type_ "hidden" ! name "completed" ! value "False"
       button ! type_ "submit" $ "Add Task"
   else ""
-  div $ do
+  div ! id "tasks" $ do
     let mytasks = filter (\t -> (userName user) `elem` (taskMembers t)) tasks
     if (mytasks == [])
       then ""
-      else h3 $ "My tasks"
+      else h3 ! id "taskheader" $ "My tasks" 
     div ! id "incomplete_tasks" $ do
       let incomplete = filter (not . taskCompleted) mytasks
       let low = filter (\t -> (taskPriority t) == "3") incomplete
@@ -129,7 +129,7 @@ displayProjectPage user tasks project = do
       let high = filter (\t -> (taskPriority t) == "1") incomplete
       if (incomplete == [])
         then ""
-        else h4 $ "In progress:"
+        else h4 ! id "curtasks" $ "In progress:"
       p ! id "3tasks" $ ul $ forM_ low $ \task -> showTask task
       p ! id "2tasks" $ ul $ forM_ med $ \task -> showTask task
       p ! id "1tasks" $ ul $ forM_ high $ \task -> showTask task

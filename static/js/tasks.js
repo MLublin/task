@@ -38,6 +38,14 @@ $(document).ready(function() {
           var tid = newtask._id;
           var priority = newtask.priority;
           var destination = $("#"+priority+"tasks");
+          if (!$("#curtasks").length) {
+            var curtaskheader =  '<h4 id="curtasks"> In progress:  </h4>';
+            $("#tasks").prepend(curtaskheader);
+          }
+          if (!$("#taskheader").length) {
+            var taskheader =  '<h3 id="taskheader"> My tasks </h3>';
+            $("#tasks").prepend(taskheader);
+          }            
           var html = 
           $('<li class="task" id="' + tid + '">' +
             newtask.name + '<br>' +
@@ -45,6 +53,12 @@ $(document).ready(function() {
             'Members: ' + newtask.members + '</li>').appendTo(destination);
           $(destination).append(html);
           console.log("appended to destination: " + destination);
+          $("#newtaskform").find("input[type=text]").val("");
+          $(".task").click(function() {
+            var complete = confirm("Set task complete?")
+            var tid = $(this).attr("id");
+            if (complete) $("#form" + tid).submit();
+          });
           return data;
         }
       });
