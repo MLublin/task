@@ -6,11 +6,13 @@
     src: url('/static/fonts/trebuchet.ttf') format('truetype'),
 }
 
+/*
 body {
   font-family: "Lato", sans-serif;
   background-color:#94BBE3;
   color:white;
 }
+*/
 
 #projectinfo {
   float: left;
@@ -32,8 +34,8 @@ iframe {
 }
 
 #alltasks {
-background-color:#4BA5B4;
-color:white;
+/*background-color:#4BA5B4;*/
+/*color:white;*/
 width: 25%;
 padding-bottom:50px;
 padding-left:30px;

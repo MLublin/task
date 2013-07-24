@@ -40,32 +40,34 @@ import Task.Models
 
 displayHomePage :: UserName -> [Project] -> [String] -> Html
 displayHomePage user projects notifs = do
-  div ! id "notifications" $ do
-    if (notifs == [] )
-      then ""
-      else do
-        h2 $ "Notifications"
-        ul $ forM_ notifs $ \notif -> li $ toHtml notif
-  div ! id "left" $ do
-    h1 $ toHtml $ "Welcome " ++ T.unpack user
-    div ! id "projects" $ do
-      a ! href "/projects/new" ! id "create-project" $ "Create new project"
-      let unfinished = filter (not . projectCompleted) projects
-      if (unfinished == []) 
+  div $ do
+   h1 $ toHtml $ "Welcome " ++ T.unpack user
+   a ! href "/projects/new" ! id "create-project" $ "Create new project"
+  div ! class_ "row-fluid" $ do
+    div ! class_ "span4" ! id "left" $ do
+      div ! id "projects" $ do
+        let unfinished = filter (not . projectCompleted) projects
+        if (unfinished == []) 
+          then ""
+          else do 
+            h2 $ "Projects In Progress"
+            ul $ forM_ unfinished $ \proj -> do
+              let pid = show $ fromJust $ projectId proj
+              li $ a ! href (toValue ("/projects/" ++ pid)) $ toHtml (projectTitle proj)
+        let finished = filter (projectCompleted) projects
+        if (finished == [])
+          then ""
+          else do 
+            h2 $ "Completed Projects"
+            ul $ forM_ finished $ \proj -> do
+              let pid = show $ fromJust $ projectId proj
+              li $ a ! href (toValue ("/projects/" ++ pid)) $ toHtml (projectTitle proj)
+    div ! class_ "span8" ! id "notifications" $ do
+      if (notifs == [] )
         then ""
-        else do 
-          h2 $ "Projects In Progress"
-          ul $ forM_ unfinished $ \proj -> do
-            let pid = show $ fromJust $ projectId proj
-            li $ a ! href (toValue ("/projects/" ++ pid)) $ toHtml (projectTitle proj)
-      let finished = filter (projectCompleted) projects
-      if (finished == [])
-        then ""
-        else do 
-          h2 $ "Completed Projects"
-          ul $ forM_ finished $ \proj -> do
-            let pid = show $ fromJust $ projectId proj
-            li $ a ! href (toValue ("/projects/" ++ pid)) $ toHtml (projectTitle proj)
+        else do
+          h2 $ "Notifications"
+          ul $ forM_ notifs $ \notif -> li $ toHtml notif
 
 displayProjectPage :: User -> [Task] -> Project -> Html
 displayProjectPage user tasks project = do
@@ -73,100 +75,104 @@ displayProjectPage user tasks project = do
   script ! src "http://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.js" $ ""
   script ! src "http://code.jquery.com/jquery-1.10.1.min.js" $ ""
   script ! src "/static/js/tasks.js" $ ""
-  div ! id "page" $ do
-      div ! id "projectinfo" $ do
-        div $ h1 ! class_ "top" ! id "name" $ toHtml $ projectTitle project
-        div $ blockquote ! class_ "top" ! id "desc" $ toHtml $ projectDesc project
-        let pid = show $ fromJust $ projectId project
-        div $ do
-          let act = "/projects/" ++ pid ++ "/leave"
-          form ! id "leaveproj" ! action (toValue act) ! method "post" $ do
-            button ! class_ "inline" ! type_ "submit" $ "Leave project"
-        div $ do
-          if (userName user `elem` projectLeaders project) 
-          then do
-            let act = "/projects/" ++ pid ++ "/remove"
-            form ! id "removeproj" ! action (toValue act) ! method "post" $ do
-              button ! class_ "inline" ! type_ "submit" $ "Remove Project"
-          else ""
-        div $ do
-          if (userName user `elem` projectLeaders project) 
-          --then div $ a ! class_ "button" ! href (toValue ("/projects/" ++ pid ++ "/edit")) $ "Edit Project"
-          then form ! action (toValue ("/projects/" ++ pid ++ "/edit")) $ do
-            button ! type_ "submit" $ "Edit Project"
-          else ""
-        div $ do
-          p $ toHtml ("Start date: " ++ projectStartTime project)
-          p $ toHtml ("End date: " ++ projectEndTime project)
-        div $ do
-          h3 $ "Project members:"
-          ul $ forM_ (projectMembers project) $ \user -> li $ toHtml $ T.unpack user
-      div ! id "alltasks" $ do
-        div $ do
-          h1 ! class_ "top" $ "Team Tasks"
-        div $ do
-          if not $ projectCompleted project 
-          then do
-            button ! id "newtaskbttn" $ "Add New Task"
-            let pid = show $ fromJust $ projectId project
-            let act = "/projects/" ++ pid ++ "/tasks"
-            form ! id "newtaskform" ! action (toValue act) ! method "post" $ do
-              p $ do
-                label ! for "name" $ "Task name: "
-                input ! type_ "text" ! name "name"
-              p $ do
-                label ! for "members" $ "Invite members: "
-                input ! type_ "text" ! name "members"
-              p $ do
-                label ! for "priority" $ "Task priority: "
-                select ! name "priority" $ do
-                  option ! value "3" $ "Low"
-                  option ! value "2" $ "Medium"
-                  option ! value "1" $ "High"
-              input ! type_ "hidden" ! name "project" ! value (toValue pid)
-              input ! type_ "hidden" ! name "completed" ! value "False"
-              button ! type_ "submit" $ "Add Task"
-          else ""
-        div ! id "tasks" $ do
-          let mytasks = filter (\t -> (userName user) `elem` (taskMembers t)) tasks
-          if (mytasks == [])
+  div ! class_ "row-fluid" ! id "page" $ do
+    div ! class_ "span3" ! id "projectinfo" $ do
+      div $ h1 ! class_ "top" ! id "name" $ toHtml $ projectTitle project
+      div $ blockquote ! class_ "top" ! id "desc" $ toHtml $ projectDesc project
+      let pid = show $ fromJust $ projectId project
+      div $ do
+        let act = "/projects/" ++ pid ++ "/leave"
+        form ! id "leaveproj" ! action (toValue act) ! method "post" $ do
+          button ! class_ "inline" ! type_ "submit" $ "Leave project"
+      div $ do
+        if (userName user `elem` projectLeaders project) 
+        then do
+          let act = "/projects/" ++ pid ++ "/remove"
+          form ! id "removeproj" ! action (toValue act) ! method "post" $ do
+            button ! class_ "inline" ! type_ "submit" $ "Remove Project"
+        else ""
+      div $ do
+        if (userName user `elem` projectLeaders project) 
+        --then div $ a ! class_ "button" ! href (toValue ("/projects/" ++ pid ++ "/edit")) $ "Edit Project"
+        then form ! action (toValue ("/projects/" ++ pid ++ "/edit")) $ do
+          button ! type_ "submit" $ "Edit Project"
+        else ""
+      div $ do
+        p $ do
+          h4 $ "Start Date:" 
+          toHtml $ projectStartTime project
+        p $ do
+          h4 $ "End Date:" 
+          toHtml $ projectEndTime project
+      div $ do
+        h4 $ "Members:"
+        ul $ forM_ (projectMembers project) $ \user -> li $ toHtml $ T.unpack user
+    div ! class_ "span4" ! id "alltasks" $ do
+      div $ do
+        h1 ! class_ "top" $ "Team Tasks"
+      div $ do
+        if not $ projectCompleted project 
+        then do
+          button ! id "newtaskbttn" $ "Add New Task"
+          let pid = show $ fromJust $ projectId project
+          let act = "/projects/" ++ pid ++ "/tasks"
+          form ! id "newtaskform" ! action (toValue act) ! method "post" $ do
+            p $ do
+              label ! for "name" $ "Task name: "
+              input ! type_ "text" ! name "name"
+            p $ do
+              label ! for "members" $ "Invite members: "
+              input ! type_ "text" ! name "members"
+            p $ do
+              label ! for "priority" $ "Task priority: "
+              select ! name "priority" $ do
+                option ! value "3" $ "Low"
+                option ! value "2" $ "Medium"
+                option ! value "1" $ "High"
+            input ! type_ "hidden" ! name "project" ! value (toValue pid)
+            input ! type_ "hidden" ! name "completed" ! value "False"
+            button ! type_ "submit" $ "Add Task"
+        else ""
+      div ! id "tasks" $ do
+        let mytasks = filter (\t -> (userName user) `elem` (taskMembers t)) tasks
+        if (mytasks == [])
+          then ""
+          else h3 ! id "taskheader" $ "My tasks" 
+        div ! id "incomplete_tasks" $ do
+          let incomplete = filter (not . taskCompleted) mytasks
+          let low = filter (\t -> (taskPriority t) == "3") incomplete
+          let med = filter (\t -> (taskPriority t) == "2") incomplete
+          let high = filter (\t -> (taskPriority t) == "1") incomplete
+          if (incomplete == [])
             then ""
-            else h3 ! id "taskheader" $ "My tasks" 
-          div ! id "incomplete_tasks" $ do
-            let incomplete = filter (not . taskCompleted) mytasks
-            let low = filter (\t -> (taskPriority t) == "3") incomplete
-            let med = filter (\t -> (taskPriority t) == "2") incomplete
-            let high = filter (\t -> (taskPriority t) == "1") incomplete
-            if (incomplete == [])
-              then ""
-              else h4 ! id "curtasks" $ "In progress:"
-            div ! id "1tasks" $ forM_ high $ \task -> showTask task
-            div ! id "2tasks" $ forM_ med $ \task -> showTask task
-            div ! id "3tasks" $ forM_ low $ \task -> showTask task
-          div ! id "complete_tasks" $ do
-            let complete = sortBy (comparing taskPriority) $ filter taskCompleted mytasks
-            let low = filter (\t -> (taskPriority t) == "3") complete
-            let med = filter (\t -> (taskPriority t) == "2") complete
-            let high = filter (\t -> (taskPriority t) == "1") complete
-            if (complete == [])
-              then ""
-              else h4 $ "Completed:"
-            p ! id "1tasks" $ forM_ high $ \task -> showTask task
-            p ! id "2tasks" $ forM_ med $ \task -> showTask task
-            p ! id "3tasks" $ forM_ low $ \task -> showTask task
-          div ! id "other_tasks" $ do
-            let otasks = filter (\t -> not $ (userName user) `elem` (taskMembers t)) tasks
-            if (otasks == [])
-              then ""
-              else do
-                h3 $ "Other tasks"
-                ul $ forM_ otasks $ \task -> 
-                  li $ toHtml $ showTask task
-          h1 $ ""
-      div ! id "comments" $ do
-        h1 $ "Project Chat"
-        let pid = show $ fromJust $ projectId project
-        iframe ! id "commentframe" ! src (toValue ("/" ++ pid ++ "/comments")) $ ""
+            else h4 ! id "curtasks" $ "In progress:"
+          div ! id "1tasks" $ forM_ high $ \task -> showTask task
+          div ! id "2tasks" $ forM_ med $ \task -> showTask task
+          div ! id "3tasks" $ forM_ low $ \task -> showTask task
+        div ! id "complete_tasks" $ do
+          let complete = sortBy (comparing taskPriority) $ filter taskCompleted mytasks
+          let low = filter (\t -> (taskPriority t) == "3") complete
+          let med = filter (\t -> (taskPriority t) == "2") complete
+          let high = filter (\t -> (taskPriority t) == "1") complete
+          if (complete == [])
+            then ""
+            else h4 $ "Completed:"
+          p ! id "1tasks" $ forM_ high $ \task -> showTask task
+          p ! id "2tasks" $ forM_ med $ \task -> showTask task
+          p ! id "3tasks" $ forM_ low $ \task -> showTask task
+        div ! id "other_tasks" $ do
+          let otasks = filter (\t -> not $ (userName user) `elem` (taskMembers t)) tasks
+          if (otasks == [])
+            then ""
+            else do
+              h3 $ "Other tasks"
+              forM_ otasks $ \task -> 
+                li $ toHtml $ showTask task
+        h1 $ ""
+    div ! class_ "span5" ! id "comments" $ do
+      h1 $ "Project Chat"
+      let pid = show $ fromJust $ projectId project
+      iframe ! id "commentframe" ! src (toValue ("/" ++ pid ++ "/comments")) $ ""
   
 newProject :: UserName -> [UserName] -> Html
 newProject user members = do
@@ -288,7 +294,6 @@ showPage comments user pid = do
   script ! src "http://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.js" $ ""
   script ! src "http://code.jquery.com/jquery-1.10.1.min.js" $ ""
   script ! src "/static/js/comments.js" $ ""
-  stylesheet "/static/css/comments.css"
   newComment user pid Nothing -- show form for making new comment
   indexComments comments pid user -- index all comments
 
@@ -367,8 +372,9 @@ stylesheet uri = link ! rel "stylesheet" ! type_ "text/css" ! href (toValue uri)
 
 respondHtml ctitle content = okHtml $ renderHtml $ docTypeHtml $ do
   head $ do
-    stylesheet "/static/css/task.css"
-    stylesheet "/static/css/task2.css"
+    --stylesheet "/static/css/task.css"
+    --stylesheet "/static/css/task2.css"
+    stylesheet "/static/css/bootstrap.css"
     title ctitle
   body $ do
     div ! class_ "header" $ do
@@ -380,6 +386,8 @@ respondHtml ctitle content = okHtml $ renderHtml $ docTypeHtml $ do
 respondHtmlC ctitle content = okHtml $ renderHtml $ docTypeHtml $ do
   head $ do
     stylesheet "/static/css/comments.css"
+    --stylesheet "/static/css/bootstrap.css"
+    --stylesheet "/static/css/task2.css"
     title ctitle
   body $ do
     script ! src "/static/js/jquery.js" $ ""

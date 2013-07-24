@@ -10,7 +10,8 @@ $(document).ready(function() {
     });
 
     $("#newtaskbttn").click(function() {
-      $("#newtaskform").show(); 
+      // alert("button clicked");
+      $("#newtaskform").toggle(); 
     });
 
     $("#newtaskform").submit(function(e) {
