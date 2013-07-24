@@ -67,7 +67,12 @@ displayHomePage user projects notifs = do
         then ""
         else do
           h2 $ "Notifications"
-          ul $ forM_ notifs $ \notif -> li $ toHtml notif
+	  form ! action "/notifs/removeall" ! method "post" $ do
+	    button ! class_ "removeNotif" ! type_ "submit" $ "Remove All Notifications"
+          ul $ forM_ notifs $ \notif -> li ! class_ "notifs" $ do
+	    form ! action (toValue ("/notifs/" ++ (show $ fromJust $ elemIndex notif notifs) ++ "/remove")) ! method "post" $ do
+	      button ! class_ "removeNotif" ! type_ "submit" $ "X"
+	      toHtml notif
 
 displayProjectPage :: User -> [Task] -> Project -> Html
 displayProjectPage user tasks project = do

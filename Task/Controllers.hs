@@ -54,7 +54,7 @@ server = mkRouter $ do
         let pids = userProjects u
         mprojects <- liftLIO $ withTaskPolicyModule $ mapM (findBy "projects" "_id") pids 
         let projects = map fromJust mprojects
-        respond $ respondHtml "Projects" $ displayHomePage user projects (take 5 $ userNotifs u)
+        respond $ respondHtml "Projects" $ displayHomePage user projects (userNotifs u)
  
   get "/projects/new" $ trace "/projects/new" $ withUserOrDoAuth $ \user -> do
     allUserdocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
@@ -224,7 +224,27 @@ server = mkRouter $ do
     let users =  map (\u -> "name" `at` u) people
     respond $ respondHtml "Users" $ showUsers users
 
+  post "/notifs/:index/remove" $ trace "notif removed" $ do
+    user <- getHailsUser
+    (Just ind) <- queryParam "index"
+    let index = read (S8.unpack ind) :: Int
+    mluserdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
+    userdoc <- liftLIO $ unlabel $ fromJust mluserdoc
+    let oldnotifs = "notifs" `at` userdoc :: [String]
+    let newnotifs = (take (index) oldnotifs ++ drop (index + 1) oldnotifs)
+    let newdoc = trace ("new notifs: " ++ show newnotifs ++ " old notifs: " ++ show oldnotifs) $ merge ["notifs" -: newnotifs] userdoc
+    liftLIO $ withTaskPolicyModule $ save "users" newdoc
+    redirectBack
 
+  post "/notifs/removeall" $ do
+    user <- getHailsUser 
+    mluserdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
+    userdoc <- liftLIO $ unlabel $ fromJust mluserdoc
+    let newdoc = merge ["notifs" -: ([] :: [String])] userdoc
+    liftLIO $ withTaskPolicyModule $ save "users" newdoc
+    redirectBack
+
+    
 addNotifs :: [HsonDocument] -> String -> DBAction () -- add task to each member's document
 addNotifs memDocs notif = do
   if memDocs == []

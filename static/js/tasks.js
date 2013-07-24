@@ -12,7 +12,7 @@ $(document).ready(function() {
     $("#newtaskbttn").click(function() {
       $("#newtaskform").toggle(); 
     });
-
+   
     $("#newtaskform").submit(function(e) {
       e.preventDefault();
       console.log("new task form submitted, default prevented");
@@ -79,7 +79,6 @@ $(document).ready(function() {
             var tid = $(this).attr("id");
             if (complete) $("#form" + tid).submit();
           });
-          $("#newtaskform").hide();
           return data;
         }
       });
