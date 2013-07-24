@@ -71,10 +71,7 @@ displayHomePage user projects notifs = do
 
 displayProjectPage :: User -> [Task] -> Project -> Html
 displayProjectPage user tasks project = do
-  script ! src "http://code.jquery.com/jquery-latest.min.js" $ ""
-  script ! src "http://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.js" $ ""
-  script ! src "http://code.jquery.com/jquery-1.10.1.min.js" $ ""
-  script ! src "/static/js/tasks.js" $ ""
+  p ! id "username" $ toHtml $ T.unpack (userName user)
   div ! id "projectinfo" $ do
     div $ h2 ! class_ "top" ! id "name" $ toHtml $ projectTitle project
     div $ blockquote ! class_ "top" ! id "desc" $ toHtml $ projectDesc project
@@ -118,11 +115,18 @@ displayProjectPage user tasks project = do
           let act = "/projects/" ++ pid ++ "/tasks"
           form ! id "newtaskform" ! action (toValue act) ! method "post" $ do
             p $ do
-              label ! for "name" $ "Task name: "
-              input ! type_ "text" ! name "name"
-            p $ do
+              label ! for "name" $ "Task: "
+              textarea ! name "name" $ ""
+           {- p $ do
               label ! for "members" $ "Invite members: "
-              input ! type_ "text" ! name "members"
+              input ! type_ "text" ! name "members" -}
+            
+	    p $ do 
+              "Members:"
+	      br
+	      forM_ (projectMembers project) $ \member -> do
+				  input ! type_ "checkbox" ! class_ "memberCheckbox" ! name "members[]" ! value (toValue member) 
+				  toHtml $ T.unpack member  
             p $ do
               label ! for "priority" $ "Task priority: "
               select ! name "priority" $ do
@@ -146,9 +150,21 @@ displayProjectPage user tasks project = do
           if (incomplete == [])
             then ""
             else h4 ! id "curtasks" $ "In progress:"
-          div ! id "tasks1" ! class_ "tasklist" $ forM_ high $ \task -> showTask task
-          div ! id "tasks2" ! class_ "tasklist" $ forM_ med $ \task -> showTask task
-          div ! id "tasks3" ! class_ "tasklist" $ forM_ low $ \task -> showTask task
+          div ! id "tasks1" ! class_ "tasklist" $ do
+	    if (high == []) then ""
+	    else do
+	      h5 ! id "HighHeader" ! class_ "blue" $ "High Priority: "
+	      forM_ high $ \task -> showTask task
+          div ! id "tasks2" ! class_ "tasklist" $ do
+	    if (med == []) then ""
+	    else do
+	      h5 ! id "MediumHeader" ! class_ "blue" $ "Medium Priority: "
+	      forM_ med $ \task -> showTask task
+          div ! id "tasks3" ! class_ "tasklist" $ do
+	    if (low == []) then ""
+	    else do
+	      h5 ! id "LowHeader" ! class_ "blue" $ "Low Priority: "
+	      forM_ low $ \task -> showTask task
         div $ do
           let complete = sortBy (comparing taskPriority) $ filter taskCompleted mytasks
           let low = filter (\t -> (taskPriority t) == "3") complete
@@ -166,7 +182,7 @@ displayProjectPage user tasks project = do
           if (otasks == [])
             then ""
             else do
-              h3 $ "Other tasks"
+              h3 ! id "othertasksheader" $ "Other tasks"
               forM_ otasks $ \task -> 
                 li $ toHtml $ showTask task
         h2 $ ""
@@ -177,8 +193,6 @@ displayProjectPage user tasks project = do
   
 newProject :: UserName -> [UserName] -> Html
 newProject user members = do
-  script ! src "http://code.jquery.com/jquery-latest.min.js" $ ""
-  script ! src "/static/js/user_select.js" $ ""
   form ! id "newprojectform" ! action "/projects" ! method "post" $ do
     p $ do
       label ! for "title" $ "Project title: "
@@ -190,15 +204,15 @@ newProject user members = do
     div ! id "memberSelect" $ do
       p $ "Select members for this project:"
       forM_ members $ \member -> do
-                          toHtml $ T.unpack member  
                           input ! type_ "checkbox" ! class_ "memberCheckbox" ! name "members[]" ! value (toValue member) 
+                          toHtml $ T.unpack member  
       
     div ! id "leaderSelect" $ do
-      p $ "select leaders for this project:"
+      p $ "Select leaders for this project:"
       forM_ members $ \member -> do
                           div ! class_ (toValue ("leaderCheckbox " ++ (T.unpack member))) $ do
-                            toHtml $ T.unpack member  
                             input ! type_ "checkbox" ! class_ (toValue ("leaderCheckbox " ++ (T.unpack member))) ! name "leaders[]" ! value (toValue member) 
+                            toHtml $ T.unpack member  
     p $ do
       label ! for "startTime" $ "Project start time: "
       input ! type_ "date" ! name "startTime"
@@ -209,8 +223,8 @@ newProject user members = do
     input ! type_ "hidden" ! name "tasks[]" ! value ""
     button ! type_ "submit" $ "Add Project"
 
-editProject :: Project -> UserName -> Html
-editProject project user = do
+editProject :: Project -> UserName -> [UserName] -> Html
+editProject project user allnames  = do
   form ! id "editprojectform" ! action "/projects/edit" ! method "post" $ do 
     p $ do
       label ! for "title" $ "Project title: "
@@ -218,12 +232,29 @@ editProject project user = do
     p $ do
       label ! for "desc" $ "Project description: "
       textarea ! name "desc" $ "" ! value (toValue $ projectDesc project)
-    p $ do
+    div ! id "memberSelect" $ do
+      p $ "Select members for this project:"
+      forM_ allnames $ \member -> do
+                          if (member `elem` (projectMembers project)) 
+			  then input ! type_ "checkbox" ! checked "checked" ! class_ "memberCheckbox" ! name "members[]" ! value (toValue member) 
+			  else input ! type_ "checkbox" ! class_ "memberCheckbox" ! name "members[]" ! value (toValue member) 
+                          toHtml $ T.unpack member  
+      
+    div ! id "leaderSelect" $ do
+      p $ "Select leaders for this project:"
+      forM_ allnames $ \member -> do
+                          div ! class_ (toValue ("leaderCheckbox " ++ (T.unpack member))) $ do
+                            if (member `elem` (projectLeaders project))
+			    then input ! type_ "checkbox" ! checked "checked" ! class_ (toValue ("leaderCheckbox " ++ (T.unpack member))) ! name "leaders[]" ! value (toValue member) 
+			    else input ! type_ "checkbox" ! class_ (toValue ("leaderCheckbox " ++ (T.unpack member))) ! name "leaders[]" ! value (toValue member) 
+                            toHtml $ T.unpack member  
+    {-p $ do
       label ! for "members" $ "Project members: "
       input ! type_ "text" ! name "members" ! value (toValue $ showStr (projectMembers project) "")
     p $ do
       label ! for "leaders" $ "Project leaders: "
-      input ! type_ "text" ! name "leaders" ! value (toValue $ showStr (projectLeaders project) "")
+      input ! type_ "text" ! name "leaders" ! value (toValue $ showStr (projectLeaders project) "")-}
+    
     p $ do
       label ! for "startTime" $ "Project start time: "
       input ! type_ "date" ! name "startTime" ! value (toValue $ projectStartTime project)
@@ -374,6 +405,11 @@ respondHtml ctitle content = okHtml $ renderHtml $ docTypeHtml $ do
       a ! href "/" ! class_ "brand" $ "Home" 
     script ! src "/static/js/jquery.js" $ ""
     script ! src "/static/js/bootstrap.js" $ ""
+    script ! src "http://code.jquery.com/jquery-latest.min.js" $ ""
+    script ! src "http://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.js" $ ""
+    script ! src "http://code.jquery.com/jquery-1.10.1.min.js" $ ""
+    script ! src "/static/js/tasks.js" $ ""
+    script ! src "/static/js/user_select.js" $ ""
     content
 
 respondHtmlC ctitle content = okHtml $ renderHtml $ docTypeHtml $ do

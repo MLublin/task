@@ -10,11 +10,25 @@
  * Designed and built with all the love in the world @twitter by @mdo and @fat.
  */
 
+.blue {
+  color:#2E8CC9;
+  font-weight: bold;
+}
+
 body {
   padding-left:50px;
   padding-top:15px;
 }
 
+button {
+background-color:#2E8CC9;
+border-radius: 6px;
+border-style:none;
+}
+
+button:hover {
+  background-color:#9BCBF2;
+}
 /*
 #body {
   background-color:#5C8BBD;
@@ -24,7 +38,7 @@ body {
 .timetitle {
   font-size:20px;
 }
-
+/*
 #tasks1 {
 background-color:#E8A5A5;
 }
@@ -36,7 +50,7 @@ background-color:#E8A5A5;
 #tasks3 {
   background-color:#FCFBB8;
 }
-
+*/
 #alltasks li {
   list-style-type: none;
 }

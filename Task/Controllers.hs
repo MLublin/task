@@ -67,8 +67,8 @@ server = mkRouter $ do
     let pid = read (drop 5 $ at "_id" pdoc) :: ObjectId
     mloldproj <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
     oldproj <- liftLIO $ unlabel $ fromJust mloldproj
-    let members = splitOn (" " :: String) ("members" `at` pdoc)
-    let leaders = splitOn (" " :: String) ("leaders" `at` pdoc)
+    let members = ("members" `at` pdoc)
+    let leaders = ("leaders" `at` pdoc)
     let project = merge [ "members" -: (members :: [String])
                         , "leaders" -: (leaders :: [String])
                         , "_id" -: pid
@@ -128,9 +128,10 @@ server = mkRouter $ do
     mpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
     proj <- (liftLIO $ unlabel $ fromJust mpdoc) >>= fromDocument
     alludocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
+    let allnames = map (\doc -> "name" `at` doc) alludocs
     let memDocs = filter (\u -> ("name" `at` u) `elem` (projectMembers proj)) alludocs
     liftLIO $ withTaskPolicyModule $ addNotifs memDocs ((T.unpack user) ++ " edited a project: " ++ (projectTitle proj))
-    respond $ respondHtml "Edit" $ editProject proj user
+    respond $ respondHtml "Edit" $ editProject proj user allnames
   
   post "/projects/:pid/remove" $ withUserOrDoAuth $ \user -> do
     (Just sid) <- queryParam "pid"
@@ -191,7 +192,7 @@ server = mkRouter $ do
                            L8.pack $ "{ \"error\" : " ++
                                        show (msg :: String) ++ "}"
     taskdoc <- include ["name", "members", "project", "completed", "priority"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
-    let members = trace "line 63" $ splitOn (" " :: String) ("members" `at` taskdoc)
+    let members = ("members" `at` taskdoc)
     let task = trace "line 64" $ merge ["members" -: (members :: [String])] taskdoc 
     tid <- liftLIO $ withTaskPolicyModule $ insert "tasks" task
     mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select [ "_id" -: pid ] "projects"
