@@ -3,7 +3,7 @@ $(document).ready(function() {
 
     $("#newtaskform").hide();
 
-    $(".task").click(function() {
+    $(".taskbullet").click(function() {
       var complete = confirm("Set task complete?");
       var tid = $(this).attr("id");
       if (complete) $("#form" + tid).submit();
@@ -38,7 +38,7 @@ $(document).ready(function() {
           var newtask = data[0];
           var tid = newtask._id;
           var priority = newtask.priority;
-          var destination = $("#"+priority+"tasks");
+          var destination = $("#tasks"+priority);
           if (!$("#curtasks").length) {
             var curtaskheader =  '<h4 id="curtasks"> In progress:  </h4>';
             $("#tasks").prepend(curtaskheader);
@@ -51,7 +51,7 @@ $(document).ready(function() {
           $('<li class="task" id="' + tid + '">' +
             newtask.name + '<br>' +
             'Priority: ' + formatPriority(newtask.priority) + '<br>' +
-            'Members: ' + newtask.members + '</li>').appendTo(destination);
+            'Members: ' + newtask.members + '</li><br>').appendTo(destination);
           $(destination).append(html);
           console.log("appended to destination: " + destination);
           $("#newtaskform").find("input[type=text]").val("");

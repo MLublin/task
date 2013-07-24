@@ -15,9 +15,53 @@ body {
   padding-top:15px;
 }
 
+/*
+#body {
+  background-color:#5C8BBD;
+}
+*/
+
+.timetitle {
+  font-size:20px;
+}
+
+#tasks1 {
+background-color:#E8A5A5;
+}
+
+#tasks2 {
+  background-color:#FCD088;
+}
+
+#tasks3 {
+  background-color:#FCFBB8;
+}
+
 #alltasks li {
   list-style-type: none;
 }
+
+/*
+.tasklist li::marker {
+color:red;
+}
+.tasklist li {
+color:black;
+}
+
+.tasklist {
+  padding-left:20px;
+border-radius:6px;
+}
+
+.taskbullet {
+color:red;
+}
+
+.taskspan {
+color:black;
+}
+*/
 
 iframe {
 border:none;
@@ -932,7 +976,7 @@ abbr.initialism {
 blockquote {
   padding: 0 0 0 15px;
   margin: 0 0 20px;
-  border-left: 5px solid #ecf0f1;
+  /*border-left: 5px solid #ecf0f1;*/
 }
 
 blockquote p {
