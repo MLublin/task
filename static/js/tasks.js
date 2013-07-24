@@ -61,9 +61,9 @@ $(document).ready(function() {
 	  } else {
             destination = $("#other_tasks");
 	      if (!$("#othertasksheader").length) {
-	      var othertaskheader = '<h3 id="othertasksheader"> Other tasks </h3>';
-	      $("#other_tasks").prepend(othertaskheader);
-	    } 
+	        var othertaskheader = '<h3 id="othertasksheader"> Other tasks </h3>';
+	        $("#other_tasks").prepend(othertaskheader);
+	      } 
 	  }
           var html = 
           $('<li class="task" id="' + tid + '">' +
@@ -90,7 +90,7 @@ $(document).ready(function() {
 
 function printArray (array) {
   var str = "";
-  for (int i = 0; i < array.length; i++) {
+  for (var i = 0; i < array.length; i++) {
     str += (" " + array[i]);
   }
   return str;
