@@ -1,6 +1,20 @@
 
 $(document).ready(function() {
 
+    $("#newprojectform").validate({
+      rules: {
+        title: "required",
+        desc: "required",
+        members: "required",
+        leaders: "required",
+        startTime: "required",
+        endTime: "required"
+      },
+      invalidHandler: function(event, validator){
+        alert("invalid form");
+      }
+    });
+
     $("#newtaskform").hide();
 
     $(".taskbullet").click(function() {
