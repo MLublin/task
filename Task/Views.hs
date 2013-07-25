@@ -94,9 +94,7 @@ displayProjectPage user tasks project = do
       else ""
     div $ do
       if (userName user `elem` projectLeaders project) 
-      --then div $ a ! class_ "button" ! href (toValue ("/projects/" ++ pid ++ "/edit")) $ "Edit Project"
       then form ! action (toValue ("/projects/" ++ pid ++ "/edit")) $ do
-        --button ! class_ "pull-left" ! type_ "submit" $ "Edit Project"
         button ! type_ "submit" $ "Edit Project"
       else ""
     div $ do
@@ -122,10 +120,6 @@ displayProjectPage user tasks project = do
             p $ do
               label ! for "name" $ "Task: "
               textarea ! name "name" $ ""
-           {- p $ do
-              label ! for "members" $ "Invite members: "
-              input ! type_ "text" ! name "members" -}
-            
 	    p $ do 
               "Members:"
 	      br
@@ -205,13 +199,11 @@ newProject user members = do
     p $ do
       label ! for "desc" $ "Project description: "
       textarea ! name "desc" $ ""
-
     div ! id "memberSelect" $ do
       h5 $ "Select members for this project:"
       forM_ members $ \member -> do
                           input ! type_ "checkbox" ! class_ "memberCheckbox" ! name "members[]" ! value (toValue member) 
                           toHtml $ T.unpack member  
-      
     div ! id "leaderSelect" $ do
       h5 $ "Select leaders for this project:"
       forM_ members $ \member -> do
@@ -253,13 +245,6 @@ editProject project user allnames  = do
 			    then input ! type_ "checkbox" ! checked "checked" ! class_ (toValue ("leaderCheckbox " ++ (T.unpack member))) ! name "leaders[]" ! value (toValue member) 
 			    else input ! type_ "checkbox" ! class_ (toValue ("leaderCheckbox " ++ (T.unpack member))) ! name "leaders[]" ! value (toValue member) 
                             toHtml $ T.unpack member  
-    {-p $ do
-      label ! for "members" $ "Project members: "
-      input ! type_ "text" ! name "members" ! value (toValue $ showStr (projectMembers project) "")
-    p $ do
-      label ! for "leaders" $ "Project leaders: "
-      input ! type_ "text" ! name "leaders" ! value (toValue $ showStr (projectLeaders project) "")-}
-    
     p $ do
       label ! for "startTime" $ "Project start time: "
       input ! type_ "date" ! name "startTime" ! value (toValue $ projectStartTime project)
@@ -305,8 +290,9 @@ showUsers users = do
   h3 $ "Users"
   ul $ forM_ users $ \user -> li $ toHtml $ T.unpack user
 
+
 newUser :: UserName -> Html
-newUser user = trace "newUser" $ do
+newUser user = do
   form ! id "people" ! action "/people" ! method "post" $ do
     input ! type_ "hidden" ! name "name" ! value (toValue $ T.unpack user)
     input ! type_ "text" ! name "notifs[]" ! value ""
@@ -349,7 +335,6 @@ indexComments coms pid user = do
           Nothing -> do
             let divid = show $ fromJust $ commentId c
             div ! class_ "comment" ! id (toValue divid) $ do
-              --h6 $ "line break"
               showComment c comments user
               let rid = toValue("rb" ++ divid)
               button ! id rid ! class_ "reply-button" $ "Reply"

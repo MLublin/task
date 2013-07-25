@@ -43,25 +43,28 @@ server = mkRouter $ do
  
 -- Projects ----
 
+  -- The Home Page displays the user's projects and notifications, and allows the user to create a new project
   get "/" $ withUserOrDoAuth $ \user -> do
     musr <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
     case musr of
-      Nothing -> trace "user not found" $ do
+      Nothing ->  do     -- New user
         respond $ respondHtml "Projects" $ trace "creating new user" $ newUser user
-      Just usr -> trace ("line 41 ") $ do
-        unlabeled <- liftLIO $ unlabel usr
-        u <- fromDocument unlabeled -- returns a User
+      Just usr -> do     -- Existing user
+        --unlabeled <- liftLIO $ unlabel usr
+        u <- (liftLIO $ unlabel usr) >>= fromDocument 
         let pids = userProjects u
         mprojects <- liftLIO $ withTaskPolicyModule $ mapM (findBy "projects" "_id") pids 
         let projects = map fromJust mprojects
         respond $ respondHtml "Projects" $ displayHomePage user projects (userNotifs u)
  
-  get "/projects/new" $ trace "/projects/new" $ withUserOrDoAuth $ \user -> do
+  -- Display the New Project page
+  get "/projects/new" $  withUserOrDoAuth $ \user -> do
     allUserdocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
     allUsers <- mapM (\ud -> fromDocument ud) allUserdocs
     let allUserNames = map (\u -> userName u) allUsers
     respond $ respondHtml "newProject" $ newProject user allUserNames 
 
+  -- Process the information for an edited project
   post "/projects/edit" $ do
     pdoc <- include ["_id", "title", "desc", "members", "completed", "startTime", "endTime", "leaders"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
     let pid = read (drop 5 $ at "_id" pdoc) :: ObjectId
@@ -75,36 +78,38 @@ server = mkRouter $ do
                         , "tasks" -: (("tasks" `at` oldproj) :: [ObjectId]) ]
                         pdoc 
     liftLIO $ withTaskPolicyModule $ save "projects" project
-    alldocs <- liftLIO $ withTaskPolicyModule $ trace "line 66" $ findAll $ select [] "users"
-    let memDocs = trace (show alldocs) $ filter (\u -> ("name" `at` u) `elem` members) alldocs
-    liftLIO $ withTaskPolicyModule $ trace "addProjects" $ addProjects memDocs pid
-    
+    alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
+    let memDocs = filter (\u -> ("name" `at` u) `elem` members) alldocs
+    liftLIO $ withTaskPolicyModule $ addProjects memDocs pid
     respond $ redirectTo ("/projects/" ++ show pid)
-     
-  get "/projects/:pid" $ withUserOrDoAuth $ \user -> trace ("user logged in: " ++ T.unpack user) $ do
+    
+  -- Display the Project Page  
+  get "/projects/:pid" $ withUserOrDoAuth $ \user -> do
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
-    mpdoc <- trace ("pid: " ++ show pid) $ liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
+    mpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
     case mpdoc of
-      Nothing -> trace "proj not found" $ respond notFound 
+      Nothing -> respond notFound 
       Just pdoc -> do
         proj <- (liftLIO $ unlabel pdoc) >>= fromDocument
         if not $ user `elem` (projectMembers proj)
           then respond $ redirectTo "/"
           else do
             mudoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
-            let udoc = fromJust mudoc
+            {-let udoc = fromJust mudoc
             unlabeled <- liftLIO $ unlabel udoc
-            u <- fromDocument unlabeled
+            u <- fromDocument unlabeled-}
+	    u <- (liftLIO $ unlabel $ fromJust mudoc) >>= fromDocument
             let tids = projectTasks proj
             mtasks <- liftLIO $ withTaskPolicyModule $ mapM (findBy "tasks" "_id") tids 
-            let tasks = trace (show mtasks) $ map fromJust mtasks
+            let tasks = map fromJust mtasks
             matype <- requestHeader "accept"
             case matype of
               Just atype | "application/json" `S8.isInfixOf` atype ->
                  return $ ok "application/json" (encode $ toJSON tasks)
               _ -> return $ respondHtml "Tasks" $ displayProjectPage u tasks proj
 
+  -- Process the information for a new project
   post "/projects" $ do
     user <- getHailsUser
     pdoc <- include ["title", "desc", "members", "completed", "startTime", "endTime", "leaders", "tasks"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
@@ -117,12 +122,13 @@ server = mkRouter $ do
     pid <- liftLIO $ withTaskPolicyModule $ insert "projects" project
     alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
     let memDocs = filter (\doc -> ("name" `at` doc) `elem` members) alldocs 
-    liftLIO $ withTaskPolicyModule $ trace "addProjects" $ addProjects memDocs pid
+    liftLIO $ withTaskPolicyModule $ addProjects memDocs pid
     modifieddocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
     let modifiedMemDocs = filter (\doc -> ("name" `at` doc) `elem` members) modifieddocs 
     liftLIO $ withTaskPolicyModule $ addNotifs modifiedMemDocs ("You were added to a new project: " ++ ("title" `at` project) ++ " by " ++ (T.unpack $ fromJust user))
     respond $ redirectTo ("/projects/" ++ show pid)
 
+  -- Display the Edit Project page
   get "/projects/:pid/edit" $ withUserOrDoAuth $ \user -> do
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
@@ -134,6 +140,7 @@ server = mkRouter $ do
     liftLIO $ withTaskPolicyModule $ addNotifs memDocs ((T.unpack user) ++ " edited a project: " ++ (projectTitle proj))
     respond $ respondHtml "Edit" $ editProject proj user allnames
   
+  -- Remove a project and redirect to home page
   post "/projects/:pid/remove" $ withUserOrDoAuth $ \user -> do
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
@@ -146,6 +153,7 @@ server = mkRouter $ do
     liftLIO $ withTaskPolicyModule $ removeProj projmembers pid
     respond $ redirectTo "/"
 
+  -- Leave a project and redirect to home page
   post "/projects/:pid/leave" $ withUserOrDoAuth $ \user -> do
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
@@ -168,6 +176,7 @@ server = mkRouter $ do
 
 -- Tasks -----
 
+  -- Mark a task as completed
   post "/tasks/:tid/edit" $ do
     (Just sid) <- queryParam "tid"
     let tid = read (S8.unpack sid) :: ObjectId
@@ -178,14 +187,15 @@ server = mkRouter $ do
     let members = "members" `at` tdoc
     allusers <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
     let memdocs = filter (\u -> (("name" `at` u) :: UserName) `elem` members) allusers
-    let projId = trace ("1") $ read ("project" `at` tdoc) :: ObjectId
-    mlproj <- trace (show projId) $ liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: (projId :: ObjectId)] "projects"
-    proj <- trace ("3") $ liftLIO $ unlabel $ fromJust mlproj
+    let projId = read ("project" `at` tdoc) :: ObjectId
+    mlproj <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: (projId :: ObjectId)] "projects"
+    proj <- liftLIO $ unlabel $ fromJust mlproj
     liftLIO $ withTaskPolicyModule $ addNotifs memdocs (("A task was marked as completed: " ++ ("name" `at` tdoc) ++ " in the project: " ++ ("title" `at` proj)) :: String)
     liftLIO $ withTaskPolicyModule $ save "tasks" newtdoc
     redirectBack
 
-  post "/projects/:pid/tasks" $ trace "Post/Task" $ do
+  -- Post a new project
+  post "/projects/:pid/tasks" $ do
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
     let ctype = "text/json"
@@ -194,7 +204,7 @@ server = mkRouter $ do
                                        show (msg :: String) ++ "}"
     taskdoc <- include ["name", "members", "project", "completed", "priority"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
     let members = ("members" `at` taskdoc)
-    let task = trace "line 64" $ merge ["members" -: (members :: [String])] taskdoc 
+    let task = merge ["members" -: (members :: [String])] taskdoc 
     tid <- liftLIO $ withTaskPolicyModule $ insert "tasks" task
     mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select [ "_id" -: pid ] "projects"
     pdoc <- liftLIO $ unlabel $ fromJust mlpdoc
@@ -212,20 +222,23 @@ server = mkRouter $ do
 
 -- Users -----
 
-  post "/people" $ trace "post /people" $ do
+  -- Add a new user
+  post "/people" $ do
     userdoc <- include ["name", "tasks"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
     let usrdoc = merge [ "tasks"    -: ([] :: [ObjectId])
                        , "notifs" -: ([] :: [String])
                        , "projects" -: ([] :: [ObjectId]) ] userdoc
-    liftLIO $ withTaskPolicyModule $ trace "line 49" $ insert "users" usrdoc
+    liftLIO $ withTaskPolicyModule $ insert "users" usrdoc
     respond $ redirectTo "/"
  
+  -- Show all users
   get "/people" $ do
     people <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
     let users =  map (\u -> "name" `at` u) people
     respond $ respondHtml "Users" $ showUsers users
 
-  post "/notifs/:index/remove" $ trace "notif removed" $ do
+  -- Remove a notification at a given index
+  post "/notifs/:index/remove" $ do
     user <- getHailsUser
     (Just ind) <- queryParam "index"
     let ctype = "text/json"
@@ -236,7 +249,7 @@ server = mkRouter $ do
     mluserdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
     userdoc <- liftLIO $ unlabel $ fromJust mluserdoc
     let oldnotifs = "notifs" `at` userdoc :: [String]
-    let newnotifs = (take (index) oldnotifs ++ drop (index + 1) oldnotifs)
+    let newnotifs = (take (index) oldnotifs ++ drop (index + 1) oldnotifs) -- remove the notification from the given index
     let newdoc = trace ("new notifs: " ++ show newnotifs ++ " old notifs: " ++ show oldnotifs) $ merge ["notifs" -: newnotifs] userdoc
     liftLIO $ withTaskPolicyModule $ save "users" newdoc
     matype <- requestHeader "accept"
@@ -245,6 +258,7 @@ server = mkRouter $ do
          return $ ok "application/json" (encode $ toJSON ([] :: [User]))
       _ -> redirectBack
 
+  -- Remove all notifications
   post "/notifs/removeall" $ do
     user <- getHailsUser 
     let ctype = "text/json"
@@ -261,8 +275,10 @@ server = mkRouter $ do
          return $ ok "application/json" (encode $ toJSON ([] :: [User]))
       _ -> redirectBack
 
-    
-addNotifs :: [HsonDocument] -> String -> DBAction () -- add task to each member's document
+---- Helper Functions --- 
+
+-- Modifies the database by adding the second argument notif to each user document's "notif" field 
+addNotifs :: [HsonDocument] -> String -> DBAction () 
 addNotifs memDocs notif = do
   if memDocs == []
     then return ()
@@ -274,8 +290,9 @@ addNotifs memDocs notif = do
       save "users" newDoc
       addNotifs (tail memDocs) notif
 
-addTasks :: [HsonDocument] -> ObjectId -> DBAction () -- add task to each member's document
-addTasks memDocs taskId = trace "addTasks called" $ do
+-- Modifies the database by adding the second argument taskId to each user document's "tasks" field
+addTasks :: [HsonDocument] -> ObjectId -> DBAction ()
+addTasks memDocs taskId = do
   if memDocs == []
     then return ()
     else do
@@ -284,9 +301,10 @@ addTasks memDocs taskId = trace "addTasks called" $ do
       let newTasks = taskId:curTasks
       let newDoc = merge ["tasks" -: newTasks] doc
       save "users" newDoc
-      trace (show $ length memDocs) $ addTasks (tail memDocs) taskId
+      addTasks (tail memDocs) taskId
 
-addProjects :: [HsonDocument] -> ObjectId -> DBAction () -- add project to each member's document
+-- Modifies the database by adding the second argument pId to each user document's "projects" field
+addProjects :: [HsonDocument] -> ObjectId -> DBAction ()
 addProjects memDocs pId = do
   if memDocs == []
     then return ()
@@ -298,9 +316,10 @@ addProjects memDocs pId = do
         let newProjects = pId:curProjects
         let newDoc = merge ["projects" -: newProjects] doc
         save "users" newDoc
-        trace (show $ length memDocs) $ addProjects (tail memDocs) pId
+        addProjects (tail memDocs) pId
 
-removeProj :: [UserName] -> ObjectId -> DBAction () -- remove project from each member's document
+-- Modifies the database by removing the second argument proj from each uer document's "projects" field
+removeProj :: [UserName] -> ObjectId -> DBAction () 
 removeProj users proj = do
   if users == []
     then return ()
@@ -353,6 +372,7 @@ indexComs username = do
        return $ ok "application/json" (encode $ toJSON comments)
     _ -> return $ respondHtmlC (toHtml $ T.unpack username) $ showPage comments username pid
 
+-- Returns a list of all documents in the database satisfying the Query
 findAll :: Query -> DBAction [HsonDocument]
 findAll q = do
         cur <- find q
