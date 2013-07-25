@@ -207,21 +207,21 @@ newProject user members = do
       textarea ! name "desc" $ ""
 
     div ! id "memberSelect" $ do
-      p $ "Select members for this project:"
+      h5 $ "Select members for this project:"
       forM_ members $ \member -> do
                           input ! type_ "checkbox" ! class_ "memberCheckbox" ! name "members[]" ! value (toValue member) 
                           toHtml $ T.unpack member  
       
     div ! id "leaderSelect" $ do
-      p $ "Select leaders for this project:"
+      h5 $ "Select leaders for this project:"
       forM_ members $ \member -> do
                           div ! class_ (toValue ("leaderCheckbox " ++ (T.unpack member))) $ do
                             input ! type_ "checkbox" ! class_ (toValue ("leaderCheckbox " ++ (T.unpack member))) ! name "leaders[]" ! value (toValue member) 
                             toHtml $ T.unpack member  
-    p $ do
+    h5 $ do
       label ! for "startTime" $ "Project start time: "
       input ! type_ "date" ! name "startTime"
-    p $ do
+    h5 $ do
       label ! for "endTime" $ "Project end time: "
       input ! type_ "date" ! name "endTime"
     input ! type_ "hidden" ! name "completed" ! value "False"

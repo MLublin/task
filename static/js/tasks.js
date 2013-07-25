@@ -1,6 +1,10 @@
 
 $(document).ready(function() {
 
+    $("#newprojectform").submit(function(){
+        
+    });
+
     $("#newtaskform").hide();
 
     $(".taskbullet").click(function(e) {
