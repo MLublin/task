@@ -78,6 +78,7 @@ server = mkRouter $ do
     alldocs <- liftLIO $ withTaskPolicyModule $ trace "line 66" $ findAll $ select [] "users"
     let memDocs = trace (show alldocs) $ filter (\u -> ("name" `at` u) `elem` members) alldocs
     liftLIO $ withTaskPolicyModule $ trace "addProjects" $ addProjects memDocs pid
+    
     respond $ redirectTo ("/projects/" ++ show pid)
      
   get "/projects/:pid" $ withUserOrDoAuth $ \user -> trace ("user logged in: " ++ T.unpack user) $ do
