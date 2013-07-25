@@ -85,6 +85,16 @@ data User = User {
   userProjects :: [ObjectId]
 } deriving (Show, Eq, Typeable)
 
+instance ToJSON User where
+  toJSON (User id name notifs t i p) =
+    object [ "_id"       .= (show $ fromJust id)
+           , "name"      .= name
+           , "notifs"    .= notifs
+           , "tasks"     .= show t
+           , "invites"   .= show i
+           , "projects"  .= show p
+           ]
+
 instance DCRecord User where
   fromDocument doc = trace "fromDoc user" $ do
     let uid = lookupObjIdh "_id" doc

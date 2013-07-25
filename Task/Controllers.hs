@@ -227,6 +227,10 @@ server = mkRouter $ do
   post "/notifs/:index/remove" $ trace "notif removed" $ do
     user <- getHailsUser
     (Just ind) <- queryParam "index"
+    let ctype = "text/json"
+        respJSON403 msg = Response status403 [(hContentType, ctype)] $
+                           L8.pack $ "{ \"error\" : " ++
+                                       show (msg :: String) ++ "}"
     let index = read (S8.unpack ind) :: Int
     mluserdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
     userdoc <- liftLIO $ unlabel $ fromJust mluserdoc
@@ -234,15 +238,27 @@ server = mkRouter $ do
     let newnotifs = (take (index) oldnotifs ++ drop (index + 1) oldnotifs)
     let newdoc = trace ("new notifs: " ++ show newnotifs ++ " old notifs: " ++ show oldnotifs) $ merge ["notifs" -: newnotifs] userdoc
     liftLIO $ withTaskPolicyModule $ save "users" newdoc
-    redirectBack
+    matype <- requestHeader "accept"
+    case matype of
+      Just atype | "application/json" `S8.isInfixOf` atype ->
+         return $ ok "application/json" (encode $ toJSON ([] :: [User]))
+      _ -> redirectBack
 
   post "/notifs/removeall" $ do
     user <- getHailsUser 
+    let ctype = "text/json"
+        respJSON403 msg = Response status403 [(hContentType, ctype)] $
+                           L8.pack $ "{ \"error\" : " ++
+                                       show (msg :: String) ++ "}"
     mluserdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
     userdoc <- liftLIO $ unlabel $ fromJust mluserdoc
     let newdoc = merge ["notifs" -: ([] :: [String])] userdoc
     liftLIO $ withTaskPolicyModule $ save "users" newdoc
-    redirectBack
+    matype <- requestHeader "accept"
+    case matype of
+      Just atype | "application/json" `S8.isInfixOf` atype ->
+         return $ ok "application/json" (encode $ toJSON ([] :: [User]))
+      _ -> redirectBack
 
     
 addNotifs :: [HsonDocument] -> String -> DBAction () -- add task to each member's document

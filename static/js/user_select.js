@@ -1,9 +1,14 @@
+
 $(document).ready(function() {
-    $('.leaderCheckbox').hide();
+    // $('.leaderCheckbox').hide();
+    $('.leaderCheckbox :checkbox').each(function() {
+      if ($(this).attr("checked") != "checked") {
+        $(this).hide();
+      }
+    });
     console.log("checkbox script loaded");
     $('.memberCheckbox').click(function() {
         var selected = [];
-        console.log("eeeeeee");
         $('#memberSelect input:checked').each(function(){
             console.log($(this).attr('name'));
             selected.push($(this).val());
@@ -25,6 +30,7 @@ $(document).ready(function() {
 
             } else {
                 $(classstr).hide();
+                $(classstr + ' input:checkbox').removeAttr("checked");
             }
         });
     });

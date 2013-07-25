@@ -40,7 +40,7 @@ import Task.Models
 
 displayHomePage :: UserName -> [Project] -> [String] -> Html
 displayHomePage user projects notifs = do
-  div $ do
+  div ! class_ "welcome" $ do
    h2 $ toHtml $ "Welcome " ++ T.unpack user
    a ! href "/projects/new" ! id "create-project" $ "Create new project"
   div ! class_ "row-fluid" $ do
@@ -67,16 +67,16 @@ displayHomePage user projects notifs = do
         then ""
         else do
           h2 $ "Notifications"
-	  form ! action "/notifs/removeall" ! method "post" $ do
+	  form ! action "/notifs/removeall" ! id "removeallnotifs" ! method "post" $ do
 	    button ! class_ "removeNotif" ! type_ "submit" $ "Remove All Notifications"
           ul $ forM_ notifs $ \notif -> li ! class_ "notifs" $ do
-	    form ! action (toValue ("/notifs/" ++ (show $ fromJust $ elemIndex notif notifs) ++ "/remove")) ! method "post" $ do
+	    form ! id "removenotif" ! action (toValue ("/notifs/" ++ (show $ fromJust $ elemIndex notif notifs) ++ "/remove")) ! method "post" $ do
 	      button ! class_ "removeNotif" ! type_ "submit" $ "X"
 	      toHtml notif
 
 displayProjectPage :: User -> [Task] -> Project -> Html
 displayProjectPage user tasks project = do
-  p ! id "username" $ toHtml $ T.unpack (userName user)
+  p ! id "username" ! class_ "hidden" $ toHtml $ T.unpack (userName user)
   div ! id "projectinfo" $ do
     div $ h2 ! class_ "top" ! id "name" $ toHtml $ projectTitle project
     div $ blockquote ! class_ "top" ! id "desc" $ toHtml $ projectDesc project
@@ -401,13 +401,16 @@ stylesheet uri = link ! rel "stylesheet" ! type_ "text/css" ! href (toValue uri)
 
 respondHtml ctitle content = okHtml $ renderHtml $ docTypeHtml $ do
   head $ do
-    --stylesheet "/static/css/task.css"
-    --stylesheet "/static/css/task2.css"
+    --div ! class_ "container " $ do
+      --div ! class_ "navbar" $ do
+        --div ! class_ "brand" $ a ! href "/" $ "Home"
     stylesheet "/static/css/bootstrap.css"
     title ctitle
   body ! id "body" $ do
-    div ! class_ "header" $ do
-      a ! href "/" ! class_ "brand" $ "Home" 
+    div ! class_ "navbar navbar-fixed-top navbar-inverse" ! id "page-nav" $ do
+      div ! class_ "navbar-inner" $ do
+        div ! class_ "container-fluid" $ do
+          a ! href "/" ! class_ "brand" $ "Home" 
     script ! src "/static/js/jquery.js" $ ""
     script ! src "/static/js/bootstrap.js" $ ""
     script ! src "http://code.jquery.com/jquery-latest.min.js" $ ""
@@ -420,7 +423,7 @@ respondHtml ctitle content = okHtml $ renderHtml $ docTypeHtml $ do
 respondHtmlC ctitle content = okHtml $ renderHtml $ docTypeHtml $ do
   head $ do
     stylesheet "/static/css/comments.css"
-    --stylesheet "/static/css/bootstrap.css"
+    stylesheet "/static/css/bootstrap.css"
     --stylesheet "/static/css/task2.css"
     title ctitle
   body $ do

@@ -9,6 +9,42 @@ $(document).ready(function() {
       if (complete) $("#form" + tid).submit();
     });
 
+    $("#removeallnotifs").submit(function(e) {
+      e.preventDefault();
+      $.ajax({
+        dataType: "json",
+        type: "POST",
+        contentType: "text/json",
+        url: $("#removeallnotifs").attr("action"),
+        data: "",
+        error: function(jqXHR, textStatus, errorThrown) {
+          alert("ajax error");
+        },
+        success: function(data) {
+          $("#notifications").remove();
+        }
+      });
+    });
+
+    $("#removenotif").submit(function(e) {
+      var form = $(this);
+      e.preventDefault();
+      $.ajax({
+        dataType: "json",
+        type: "POST",
+        contentType: "text/json",
+        url: $("#removenotif").attr("action"),
+        data: "",
+        error: function(jqXHR, textStatus, errorThrown) {
+          alert("ajax error");
+          console.log(textStatus, errorThrown);
+        },
+        success: function() {
+          form.remove();
+        }
+      });
+    });
+
     $("#newtaskbttn").click(function() {
       $("#newtaskform").toggle(); 
     });
