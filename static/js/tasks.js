@@ -97,10 +97,6 @@ $(document).ready(function() {
           if ($.inArray(user, members) != -1) {
                   var priority = newtask.priority;
                   destination = $("#tasks"+priority);
-                  // if (!$("#curtasks").length) {
-                  //   var curtaskheader =  '<h4 id="curtasks"> In progress:  </h4>';
-                  //   $("#tasks").prepend(curtaskheader);
-                  // }
                   if (!$("#taskheader").length) {
                     var taskheader =  '<h3 id="taskheader"> My tasks </h3>';
                     $("#tasks").prepend(taskheader);
@@ -109,7 +105,7 @@ $(document).ready(function() {
                   if (!$("#" + headerId).length) {
                     console.log(headerId);
                     console.log("Task div: " + $("#tasks" + priority));
-                    var curpriorityheader =  '<h5 class="blue" id="' + headerId + '">' + formatPriority(priority) + ' Priority  </h5>';
+                    var curpriorityheader =  '<h5 class="blue headertp' + priority + '" id="' + headerId + '">' + formatPriority(priority) + ' Priority  </h5>';
                     $("#tasks" + priority).prepend(curpriorityheader);
                   }
           } else {
@@ -121,7 +117,7 @@ $(document).ready(function() {
           }
           var html = 
           $('<li class="task" id="' + tid + '">' +
-            '<form id="form' + tid + '" class="complete_tasks_form" action="/tasks/' + tid + '/edit" method="post">' + 
+            '<form id="form' + tid + '" class="complete_tasks_form taskp' + newtask.priority + '" action="/tasks/' + tid + '/edit" method="post">' + 
             '<button type="submit" > X </button>' +
             newtask.name + '<br>' +
             '<blockquote> Members: ' + printArray(newtask.members) + '</blockquote></li>' + 
@@ -180,10 +176,18 @@ function removeItem(form){
       console.log("remove item success");
       var tid = (form.attr('id')).substring(4);
       var newForm = form.clone();
-      form.hide();
+      form.remove();
       newForm.attr('class', 'remove_tasks_form');
       newForm.attr('action','/tasks/' + tid + '/remove');
       newForm.attr('id', 'complete' + tid);
+      console.log($(".remove_tasks_form").length);
+      if ($(".remove_tasks_form").length === 0) {
+        $("#complete_tasks").prepend("<h4>Completed: </h4>");
+        console.log("prepend attempted");
+      }
+      for(var i = 1; i <= 3 ; i++ ){
+        if($(".taskp" + i).length === 0) $(".headertp" + i).remove();
+      }
       newForm.appendTo("#complete_tasks");
     }
   });  
