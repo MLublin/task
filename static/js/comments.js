@@ -152,7 +152,7 @@ function handle_reply(parent) {
 }
 
 /**
-Append the comment, a reply button, and an edit button if applicable to the destination div
+Prepend the comment, a reply button, and an edit button if applicable to the destination div
 */
 function showComment(comment, destination) {
   var cid = comment._id;
@@ -174,7 +174,7 @@ function showComment(comment, destination) {
     '<li id="p' + comment._id + '">' + comment.parent + '</li>' +
     buttons +
     '</div>').appendTo(destination);
-  $(destination).append(html);
+  $(destination).prepend(html);
 
   $(".reply-button").click(function() {
     var parent = $(this).parent()[0];

@@ -327,7 +327,7 @@ newComment username projId mparent = do
 
 indexComments :: [Comment] -> ObjectId -> UserName -> Html
 indexComments coms pid user = do
-  let comments = sortBy (comparing (timestamp . fromJust . commentId)) coms
+  let comments = reverse $ sortBy (comparing (timestamp . fromJust . commentId)) coms
   ul ! id "root" $ do
     forM_ comments $ \c -> do
       if (commentAssocProj c) == pid
