@@ -10,6 +10,14 @@
  * Designed and built with all the love in the world @twitter by @mdo and @fat.
  */
 
+label.error {
+color:red;
+}
+
+input.error {
+border:1px solid red;
+}
+
 .container, .container-fluid, .navbar, .navbar-inner {
   background-color:#2E8CC9;
 }

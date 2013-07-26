@@ -70,7 +70,7 @@ displayHomePage user projects notifs = do
 	  form ! action "/notifs/removeall" ! id "removeallnotifs" ! method "post" $ do
 	    button ! class_ "removeNotif" ! type_ "submit" $ "Remove All Notifications"
           ul $ forM_ notifs $ \notif -> li ! class_ "notifs" $ do
-	    form ! id "removenotif" ! action (toValue ("/notifs/" ++ (show $ fromJust $ elemIndex notif notifs) ++ "/remove")) ! method "post" $ do
+	    form ! class_ "removenotif" ! action (toValue ("/notifs/" ++ (show $ fromJust $ elemIndex notif notifs) ++ "/remove")) ! method "post" $ do
 	      button ! class_ "removeNotif" ! type_ "submit" $ "X"
 	      toHtml notif
 

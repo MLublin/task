@@ -7,8 +7,8 @@ $(document).ready(function() {
         desc: "required",
         members: "required",
         leaders: "required",
-        startTime: "required",
-        endTime: "required"
+        // startTime: "required",
+        // endTime: "required"
       },
       invalidHandler: function(event, validator){
         alert("invalid form");
@@ -40,14 +40,14 @@ $(document).ready(function() {
       });
     });
 
-    $("#removenotif").submit(function(e) {
-      var form = $(this);
+    $(".removenotif").submit(function(e) {
       e.preventDefault();
+      var form = $(this);
       $.ajax({
         dataType: "json",
         type: "POST",
         contentType: "text/json",
-        url: $("#removenotif").attr("action"),
+        url: form.attr("action"),
         data: "",
         error: function(jqXHR, textStatus, errorThrown) {
           alert("ajax error");
