@@ -176,11 +176,25 @@ server = mkRouter $ do
 
 -- Tasks -----
 
+
+  post "/tasks/:tid/remove" $ do
+    (Just sid) <- queryParam "tid"
+    let tid = read (S8.unpack sid) :: ObjectId
+    mltdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: tid] "tasks"
+    tdoc <- liftLIO $ unlabel $ fromJust mltdoc
+    let projId = read ("project" `at` tdoc) :: ObjectId
+    mlproj <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: (projId :: ObjectId)] "projects"
+    proj <- liftLIO $ unlabel $ fromJust mlproj
+    let tasks = trace ("old task length: " ++ (show $ length (("tasks" `at` proj) :: [ObjectId]))) $ filter (\t -> t /= tid) ("tasks" `at` proj)
+    let newProj = trace ("new tasks length: " ++ (show $ length tasks)) $ merge ["tasks" -: tasks] proj
+    liftLIO $ withTaskPolicyModule $ save "projects" newProj
+    redirectBack
+
   -- Mark a task as completed
   post "/tasks/:tid/edit" $ do
     (Just sid) <- queryParam "tid"
     let tid = read (S8.unpack sid) :: ObjectId
-    completed <- include ["completed"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
+    let completed  = ["completed" -: ("True" :: String)]
     mltdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: tid] "tasks" 
     tdoc <- liftLIO $ unlabel $ fromJust mltdoc
     let newtdoc = merge completed tdoc
@@ -193,6 +207,8 @@ server = mkRouter $ do
     liftLIO $ withTaskPolicyModule $ addNotifs memdocs (("A task was marked as completed: " ++ ("name" `at` tdoc) ++ " in the project: " ++ ("title" `at` proj)) :: String)
     liftLIO $ withTaskPolicyModule $ save "tasks" newtdoc
     redirectBack
+
+  
 
   -- Post a new project
   post "/projects/:pid/tasks" $ do

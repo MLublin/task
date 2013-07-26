@@ -50,7 +50,6 @@ displayHomePage user projects notifs = do
         if (unfinished == []) 
           then ""
           else do 
-            h2 $ "Projects In Progress"
             ul $ forM_ unfinished $ \proj -> do
               let pid = show $ fromJust $ projectId proj
               li $ a ! href (toValue ("/projects/" ++ pid)) $ toHtml (projectTitle proj)
@@ -173,9 +172,9 @@ displayProjectPage user tasks project = do
             then ""
             else h4 $ "Completed:"
           div ! id "complete_tasks" ! class_ "tasklist" $ do
-            p ! class_ "hightasks" $ forM_ high $ \task -> showTask task
-            p ! class_ "medtasks" $ forM_ med $ \task -> showTask task
-            p ! class_ "lowtasks" $ forM_ low $ \task -> showTask task
+            p ! class_ "hightasks" $ forM_ high $ \task -> showCompletedTask task
+            p ! class_ "medtasks" $ forM_ med $ \task -> showCompletedTask task
+            p ! class_ "lowtasks" $ forM_ low $ \task -> showCompletedTask task
         div ! id "other_tasks" $ do
           let otasks = filter (\t -> not $ (userName user) `elem` (taskMembers t)) tasks
           if (otasks == [])
@@ -266,22 +265,33 @@ editProject project user allnames  = do
 
 -- Tasks -----
 
-checkTask :: Task -> Html
-checkTask task = trace "checkTask" $ do
-  let tid = show $ fromJust $ taskId task
-  let fid = toValue ("form" ++ tid)
-  let act = "/tasks/" ++ tid ++ "/edit"
-  form ! id fid ! action (toValue act) ! method "post" $ do
-    input ! type_ "hidden" ! name "completed" ! value "True"
-
 showTask :: Task -> Html
 showTask task = do
   let tid = toValue $ show $ fromJust $ taskId task
   li ! id tid ! class_ "taskbullet" $ do
-      toHtml (taskName task)
-      br
-      blockquote $ toHtml ("Members: " ++ (showStr (taskMembers task) ""))
-  checkTask task
+      let tid = show $ fromJust $ taskId task
+      let fid = toValue ("form" ++ tid)
+      let act = "/tasks/" ++ tid ++ "/edit"
+      form ! id fid ! class_ "complete_tasks_form" ! action (toValue act) ! method "post" $ do
+        input ! type_ "hidden" ! name "completed" ! value "True"
+        button ! type_ "submit" $ "X"
+        toHtml (taskName task)
+        br
+        blockquote $ toHtml ("Members: " ++ (showStr (taskMembers task) ""))
+
+showCompletedTask :: Task -> Html
+showCompletedTask task = do
+  let tid = toValue $ show $ fromJust $ taskId task
+  li ! id tid ! class_ "taskbullet" $ do
+      let tid = show $ fromJust $ taskId task
+      let fid = toValue ("complete" ++ tid)
+      let act = "/tasks/" ++ tid ++ "/remove"
+      form ! id fid ! class_ "remove_tasks_form" ! action (toValue act) ! method "post" $ do
+        button ! type_ "submit" $ "X"
+        toHtml (taskName task)
+        br
+        blockquote $ toHtml ("Members: " ++ (showStr (taskMembers task) ""))  
+
 
 -- Users -----
 

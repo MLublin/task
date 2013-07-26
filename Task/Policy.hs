@@ -29,7 +29,7 @@ instance PolicyModule TaskPolicyModule where
         clearance $ do
           secrecy ==> this
           integrity ==> unrestricted
-        document $ \_ -> do
+        document $ \doc -> do
           readers ==> unrestricted
           writers ==> unrestricted
         field "name" key
@@ -52,7 +52,7 @@ instance PolicyModule TaskPolicyModule where
         clearance $ do
           secrecy ==> this
           integrity ==> unrestricted
-        document $ \_ -> do
+        document $ \doc -> do
           readers ==> unrestricted
           writers ==> unrestricted
         field "_id" key

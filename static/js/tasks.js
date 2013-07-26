@@ -17,11 +17,13 @@ $(document).ready(function() {
 
     $("#newtaskform").hide();
 
-    $(".taskbullet").click(function() {
-      var complete = confirm("Set task complete?");
-      var tid = $(this).attr("id");
-      if (complete) $("#form" + tid).submit();
-    });
+
+   $(".complete_tasks_form").submit(function(e){
+          e.preventDefault();
+          var form = $(this);
+          removeItem(form);
+          
+        });
 
     $("#removeallnotifs").submit(function(e) {
       e.preventDefault();
@@ -39,6 +41,8 @@ $(document).ready(function() {
         }
       });
     });
+
+
 
     $(".removenotif").submit(function(e) {
       e.preventDefault();
@@ -93,10 +97,10 @@ $(document).ready(function() {
           if ($.inArray(user, members) != -1) {
                   var priority = newtask.priority;
                   destination = $("#tasks"+priority);
-                  if (!$("#curtasks").length) {
-                    var curtaskheader =  '<h4 id="curtasks"> In progress:  </h4>';
-                    $("#tasks").prepend(curtaskheader);
-                  }
+                  // if (!$("#curtasks").length) {
+                  //   var curtaskheader =  '<h4 id="curtasks"> In progress:  </h4>';
+                  //   $("#tasks").prepend(curtaskheader);
+                  // }
                   if (!$("#taskheader").length) {
                     var taskheader =  '<h3 id="taskheader"> My tasks </h3>';
                     $("#tasks").prepend(taskheader);
@@ -117,18 +121,25 @@ $(document).ready(function() {
           }
           var html = 
           $('<li class="task" id="' + tid + '">' +
+            '<form id="form' + tid + '" class="complete_tasks_form" action="/tasks/' + tid + '/edit" method="post">' + 
+            '<button type="submit" > X </button>' +
             newtask.name + '<br>' +
             '<blockquote> Members: ' + printArray(newtask.members) + '</blockquote></li>' + 
-            '<form id="form' + tid + '" action="/tasks/' + tid + '/edit" method="post">' 
-            + '<input type="hidden" name="completed" value="True">' ).appendTo(destination);
+            '<input type="hidden" name="completed" value="True">' + 
+            '</form> </li>').appendTo(destination);
           $(destination).append(html);
           console.log("appended to destination: " + destination);
           $("#newtaskform").find("textarea").val("");
-          $("#"+tid).click(function() {
-            var complete = confirm("Set task complete?");
-            var tid = $(this).attr("id");
-            if (complete) $("#form" + tid).submit();
+          $("#form" + tid).submit(function(e){
+            e.preventDefault();
+            var form = $(this);
+            removeItem(form);
+            
+            // var newForm = $('<form id="complete'+ tid +'" class="remove_tasks_form" action="/tasks/'+ 
+            //   tid +'/remove" method="post"> <button type="submit" > X </button>' + 
+            //   ' ')
           });
+
           return data;
         }
       });
@@ -153,3 +164,27 @@ function formatPriority(priority) {
   return "Not set";
 }
 
+function removeItem(form){
+  console.log("remove item called");
+  console.log(form.attr("action"));
+  $.ajax({
+    dataType: "json",
+    type: "POST",
+    contentType: "text/json",
+    url: form.attr("action"),
+    data: form.serialize(),
+    error: function(jqXHR, textStatus, errorThrown) {
+      alert("ajax error");
+    },
+    success: function(data) {
+      console.log("remove item success");
+      var tid = (form.attr('id')).substring(4);
+      var newForm = form.clone();
+      form.hide();
+      newForm.attr('class', 'remove_tasks_form');
+      newForm.attr('action','/tasks/' + tid + '/remove');
+      newForm.attr('id', 'complete' + tid);
+      newForm.appendTo("#complete_tasks");
+    }
+  });  
+}
