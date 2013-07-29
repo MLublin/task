@@ -77,9 +77,13 @@ server = mkRouter $ do
                         , "tasks" -: (("tasks" `at` oldproj) :: [ObjectId]) ]
                         pdoc 
     liftLIO $ withTaskPolicyModule $ save "projects" project
-    alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
-    let memDocs = filter (\u -> ("name" `at` u) `elem` members) alldocs
+    alldocs <- liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
+    memDocs <- liftLIO $ filterM (\ldoc -> do
+                                    doc <- liftLIO $ unlabel ldoc 
+                                    return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
+                                 alldocs
     liftLIO $ withTaskPolicyModule $ addProjects memDocs pid
+    -- to do: remove project from the documents of users who were removed
     respond $ redirectTo ("/projects/" ++ show pid)
     
   -- Display the Project Page  
@@ -116,8 +120,11 @@ server = mkRouter $ do
                         , "tasks" -: ([] :: [ObjectId])]
                         pdoc 
     pid <- liftLIO $ withTaskPolicyModule $ insert "projects" project
-    alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
-    let memDocs = filter (\doc -> ("name" `at` doc) `elem` members) alldocs 
+    alldocs <- liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
+    memDocs <- liftLIO $ filterM (\ldoc -> do
+                                    doc <- liftLIO $ unlabel ldoc 
+                                    return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
+                                 alldocs
     liftLIO $ withTaskPolicyModule $ addProjects memDocs pid
     modifieddocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
     let modifiedMemDocs = filter (\doc -> ("name" `at` doc) `elem` members) modifieddocs 
@@ -215,7 +222,7 @@ server = mkRouter $ do
     taskdoc <- include ["name", "members", "project", "completed", "priority"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
     let members = ("members" `at` taskdoc)
     let task = merge ["members" -: (members :: [String])] taskdoc 
-    tid <- liftLIO $ withTaskPolicyModule $ insert "tasks" task
+    tid <- liftLIO $ withTaskPolicyModule $ insert "tasks" task -- todo: move to policy
     mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select [ "_id" -: pid ] "projects"
     pdoc <- liftLIO $ unlabel $ fromJust mlpdoc
     let curTasks = "tasks" `at` pdoc
@@ -353,21 +360,6 @@ addTasks memDocs taskId = do
       save "users" newDoc
       addTasks (tail memDocs) taskId
 
--- Modifies the database by adding the second argument pId to each user document's "projects" field
-addProjects :: [HsonDocument] -> ObjectId -> DBAction ()
-addProjects memDocs pId = do
-  if memDocs == []
-    then return ()
-    else do
-      let doc = head memDocs
-      let curProjects = "projects" `at` doc
-      if (pId `elem` curProjects) then addProjects (tail memDocs) pId
-      else do 
-        let newProjects = pId:curProjects
-        let newDoc = merge ["projects" -: newProjects] doc
-        save "users" newDoc
-        addProjects (tail memDocs) pId
-
 -- Modifies the database by removing the second argument proj from each uer document's "projects" field
 removeProj :: [UserName] -> ObjectId -> DBAction () 
 removeProj users proj = do
@@ -382,6 +374,18 @@ removeProj users proj = do
       let newdoc = merge ["projects" -: newprojs] u
       liftLIO $ withTaskPolicyModule $ save "users" newdoc
       removeProj (tail users) proj
+
+-- Returns a list of all labeled documents in the database satisfying the Query
+findAllL :: Query -> DBAction [LabeledHsonDocument]
+findAllL q = do
+        cur <- find q
+        getAll cur []
+        where getAll cur list = do
+              mldoc <- next cur
+              case mldoc of
+                Nothing -> return list
+                Just ldoc -> do
+                        getAll cur (list ++ [ldoc])
 
 -- Returns a list of all documents in the database satisfying the Query
 findAll :: Query -> DBAction [HsonDocument]
