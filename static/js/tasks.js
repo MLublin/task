@@ -22,6 +22,12 @@ $(document).ready(function() {
     removeItem(form);
   });
 
+  //remove completed task from the screen 
+  $(".remove_tasks_form").submit(function(e){
+    e.preventDefault();
+    removeCompletedItem($(this));
+  });
+
   // Clear all notifications
   $("#removeallnotifs").submit(function(e) {
     e.preventDefault();
@@ -61,6 +67,31 @@ $(document).ready(function() {
   });
 });
 
+
+function removeCompletedItem(form){
+  console.log("remove item called");
+  console.log(form.attr("action"));
+  $.ajax({
+    dataType: "json",
+    type: "POST",
+    contentType: "text/json",
+    url: form.attr("action"),
+    data: form.serialize(),
+    error: function(jqXHR, textStatus, errorThrown) {
+      alert("ajax error");
+    },
+    success: function(data) {
+      console.log("remove item success");
+      form.remove();
+      console.log($(".remove_tasks_form").length);
+      if ($(".remove_tasks_form").length === 0) {
+        $("#complete_tasks").empty();
+        console.log("completed tasks div emptied");
+      }
+    }
+  });  
+}
+
 // Remove the form (which contains a task) from the incomplete_tasks div and append it to the complete_tasks div
 function removeItem(form){
   console.log("remove item called");
@@ -91,6 +122,10 @@ function removeItem(form){
         if($(".taskp" + i).length === 0) $(".headertp" + i).remove();
       }
       newForm.appendTo("#complete_tasks");
+      $(".remove_tasks_form").submit(function(e){
+        e.preventDefault();
+        removeCompletedItem($(this));
+      });
     }
   });  
 }

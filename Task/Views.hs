@@ -151,7 +151,7 @@ editProject project user allnames  = do
       input ! type_ "text" ! name "title" ! value (toValue $ projectTitle project)
     p $ do
       label ! for "desc" $ "Project description: "
-      textarea ! name "desc" $ "" ! value (toValue $ projectDesc project)
+      textarea ! name "desc" $ toHtml $ projectDesc project
     div ! id "memberSelect" $ do
       p $ "Select members for this project:"
       forM_ allnames $ \member -> do
@@ -249,10 +249,11 @@ displayTasks user tasks project = do
       let low = filter (\t -> (taskPriority t) == "3") complete
       let med = filter (\t -> (taskPriority t) == "2") complete
       let high = filter (\t -> (taskPriority t) == "1") complete
-      if (complete == [])
-        then ""
-        else h4 $ "Completed:"
+      
       div ! id "complete_tasks" ! class_ "tasklist" $ do
+        if (complete == [])
+          then ""
+          else h4 $ "Completed:"
         p ! class_ "hightasks" $ forM_ high $ \task -> showCompletedTask task
         p ! class_ "medtasks" $ forM_ med $ \task -> showCompletedTask task
         p ! class_ "lowtasks" $ forM_ low $ \task -> showCompletedTask task

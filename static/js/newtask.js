@@ -1,6 +1,6 @@
 
 $(document).ready(function() {
-
+  console.log("newtask.js loaded");
   $("#newtaskform").hide();
 
   $("#newtaskbttn").click(function() {

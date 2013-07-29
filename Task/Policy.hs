@@ -12,6 +12,10 @@ import LIO.DCLabel
 import Hails.Database
 import Hails.PolicyModule
 import Hails.PolicyModule.DSL
+import Hails.Web.User
+import qualified Data.List as List
+import qualified Data.Text as T
+
 
 data TaskPolicyModule = TaskPolicyModuleTCB DCPriv deriving Typeable
 
@@ -53,7 +57,8 @@ instance PolicyModule TaskPolicyModule where
           secrecy ==> this
           integrity ==> unrestricted
         document $ \doc -> do
-          readers ==> unrestricted
+          let members = map T.unpack ("members" `at` doc :: [UserName])
+          readers ==> List.foldl' (\/) this members
           writers ==> unrestricted
         field "_id" key
       collection "comments" $ do
