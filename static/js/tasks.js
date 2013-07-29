@@ -78,10 +78,18 @@ function removeItem(form){
       console.log("remove item success");
       var tid = (form.attr('id')).substring(4);
       var newForm = form.clone();
-      form.hide();
+      form.remove();
       newForm.attr('class', 'remove_tasks_form');
       newForm.attr('action','/tasks/' + tid + '/remove');
       newForm.attr('id', 'complete' + tid);
+      console.log($(".remove_tasks_form").length);
+      if ($(".remove_tasks_form").length === 0) {
+        $("#complete_tasks").prepend("<h4>Completed: </h4>");
+        console.log("prepend attempted");
+      }
+      for(var i = 1; i <= 3 ; i++ ){
+        if($(".taskp" + i).length === 0) $(".headertp" + i).remove();
+      }
       newForm.appendTo("#complete_tasks");
     }
   });  

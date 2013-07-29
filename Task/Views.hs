@@ -107,6 +107,7 @@ displayProjectPage user tasks project = do
       h4 $ "Members:"
       ul $ forM_ (projectMembers project) $ \user -> li $ toHtml $ T.unpack user
     div ! class_ "span5" ! id "alltasks" $ displayTasks user tasks project
+>>>>>>> 14a0e373270611a482cde1bd173080783b16ad67
     div ! class_ "span5" ! id "comments" $ do
       h2 $ "Project Chat"
       let pid = show $ fromJust $ projectId project
@@ -207,8 +208,8 @@ displayTasks user tasks project = do
           "Members:"
           br
           forM_ (projectMembers project) $ \member -> do
-            input ! type_ "checkbox" ! class_ "memberCheckbox" ! name "members[]" ! value (toValue member) 
-            toHtml $ T.unpack member
+                              input ! type_ "checkbox" ! class_ "memberCheckbox" ! name "members[]" ! value (toValue member) 
+                              toHtml $ T.unpack member  
         p $ do
           label ! for "priority" $ "Task priority: "
           select ! name "priority" $ do
@@ -229,23 +230,20 @@ displayTasks user tasks project = do
       let low = filter (\t -> (taskPriority t) == "3") incomplete
       let med = filter (\t -> (taskPriority t) == "2") incomplete
       let high = filter (\t -> (taskPriority t) == "1") incomplete
-      if (incomplete == [])
-        then ""
-        else h4 ! id "curtasks" $ "In progress:"
       div ! id "tasks1" ! class_ "tasklist" $ do
         if (high == []) then ""
         else do
-          h5 ! id "HighHeader" ! class_ "blue" $ "High Priority: "
+          h5 ! id "HighHeader" ! class_ "blue headertp1" $ "High Priority: "
           forM_ high $ \task -> showTask task
       div ! id "tasks2" ! class_ "tasklist" $ do
         if (med == []) then ""
         else do
-          h5 ! id "MediumHeader" ! class_ "blue" $ "Medium Priority: "
+          h5 ! id "MediumHeader" ! class_ "blue headertp2" $ "Medium Priority: "
           forM_ med $ \task -> showTask task
       div ! id "tasks3" ! class_ "tasklist" $ do
         if (low == []) then ""
         else do
-          h5 ! id "LowHeader" ! class_ "blue" $ "Low Priority: "
+          h5 ! id "LowHeader" ! class_ "blue headertp3" $ "Low Priority: "
           forM_ low $ \task -> showTask task
     div $ do
       let complete = sortBy (comparing taskPriority) $ filter taskCompleted mytasks
@@ -276,7 +274,7 @@ showTask task = do
       let tid = show $ fromJust $ taskId task
       let fid = toValue ("form" ++ tid)
       let act = "/tasks/" ++ tid ++ "/edit"
-      form ! id fid ! class_ "complete_tasks_form" ! action (toValue act) ! method "post" $ do
+      form ! id fid ! class_ (toValue ("complete_tasks_form taskp" ++ (taskPriority task))) ! action (toValue act) ! method "post" $ do
         input ! type_ "hidden" ! name "completed" ! value "True"
         button ! type_ "submit" $ "X"
         toHtml (taskName task)
