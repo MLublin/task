@@ -228,12 +228,17 @@ server = mkRouter $ do
     let curTasks = "tasks" `at` pdoc
     let newTasks = tid:curTasks
     let newDoc = merge ["tasks" -: newTasks] pdoc
-    alludocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
-    let memDocs = filter (\u -> ("name" `at` u) `elem` members) alludocs
+    alludocs <- liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
+    memDocs <- liftLIO $ filterM (\ldoc -> do
+                                    doc <- liftLIO $ unlabel ldoc 
+                                    return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
+                                 alludocs
+    alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"  -- unlabeled version
+    let unlabeledmemDocs = filter (\u -> ("name" `at` u) `elem` members) alldocs
     liftLIO $ withTaskPolicyModule $ do
       save "projects" newDoc
       addTasks memDocs tid
-      liftLIO $ withTaskPolicyModule $ addNotifs memDocs (("You were assigned a task: " ++ ("name" `at` task) ++ " in the project: " ++ ("title" `at` pdoc)) :: String)
+      liftLIO $ withTaskPolicyModule $ addNotifs unlabeledmemDocs (("You were assigned a task: " ++ ("name" `at` task) ++ " in the project: " ++ ("title" `at` pdoc)) :: String)
     respond $ redirectTo ("/projects/" ++ show pid)   
 
 
@@ -346,19 +351,6 @@ addNotifs memDocs notif = do
       let newDoc = merge ["notifs" -: newNotifs] doc
       save "users" newDoc
       addNotifs (tail memDocs) notif
-
--- Modifies the database by adding the second argument taskId to each user document's "tasks" field
-addTasks :: [HsonDocument] -> ObjectId -> DBAction ()
-addTasks memDocs taskId = do
-  if memDocs == []
-    then return ()
-    else do
-      let doc = head memDocs
-      let curTasks = "tasks" `at` doc
-      let newTasks = taskId:curTasks
-      let newDoc = merge ["tasks" -: newTasks] doc
-      save "users" newDoc
-      addTasks (tail memDocs) taskId
 
 -- Modifies the database by removing the second argument proj from each uer document's "projects" field
 removeProj :: [UserName] -> ObjectId -> DBAction () 

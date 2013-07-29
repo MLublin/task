@@ -4,6 +4,7 @@ module Task.Policy (
    TaskPolicyModule
    , withTaskPolicyModule
    , addProjects
+   , addTasks
    ) where
 
 import Data.Typeable
@@ -108,26 +109,21 @@ addProjects lmemdocs pId = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB my
           addProjects (tail lmemdocs) pId
     else trace "addProjects: label was not high enough" $ return ()
 
-{-
--- Modifies the database by adding the second argument taskId to each user document's "tasks" field
+-- Modifies the database by adding the second argument tid to each user document's "tasks" field
 addTasks :: [LabeledHsonDocument] -> ObjectId -> DBAction ()
 addTasks lmemdocs tid = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB mypriv) -> do
   if (length lmemdocs == 0)
   then return ()
   else do
     mltask <- findOne $ select ["_id" -: tid] "tasks"
-    task <- unlabel $ fromJust mltask
-    let pid = "project" `at` task
-    mlproj <- findOne $ select ["_id" -: pid] "projects"
-    let lproj = fromJust mlproj
-    if (labelOf (head lmemdocs)) `canFlowTo` (labelOf lproj)
+    let ltask = fromJust mltask
+    if (labelOf (head lmemdocs)) `canFlowTo` (labelOf ltask)
     then do
       memDocs <- mapM (liftLIO . unlabel) lmemdocs
       let doc = head memDocs
       let curTasks = "tasks" `at` doc
-      let newTasks = taskId:curTasks
+      let newTasks = tid:curTasks
       let newDoc = merge ["tasks" -: newTasks] doc
       saveP mypriv "users" newDoc
-      addTasks (tail memDocs) taskId
+      addTasks (tail lmemdocs) tid
     else trace "addProjects: label was not high enough" $ return ()
--}
