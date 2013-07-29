@@ -50,7 +50,6 @@ server = mkRouter $ do
       Nothing ->  do     -- New user
         respond $ respondHtml "Projects" $ trace "creating new user" $ newUser user
       Just usr -> do     -- Existing user
-        --unlabeled <- liftLIO $ unlabel usr
         u <- (liftLIO $ unlabel usr) >>= fromDocument 
         let pids = userProjects u
         mprojects <- liftLIO $ withTaskPolicyModule $ mapM (findBy "projects" "_id") pids 
@@ -96,9 +95,6 @@ server = mkRouter $ do
           then respond $ redirectTo "/"
           else do
             mudoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
-            {-let udoc = fromJust mudoc
-            unlabeled <- liftLIO $ unlabel udoc
-            u <- fromDocument unlabeled-}
 	    u <- (liftLIO $ unlabel $ fromJust mudoc) >>= fromDocument
             let tids = projectTasks proj
             mtasks <- liftLIO $ withTaskPolicyModule $ mapM (findBy "tasks" "_id") tids 
@@ -153,7 +149,7 @@ server = mkRouter $ do
     liftLIO $ withTaskPolicyModule $ removeProj projmembers pid
     respond $ redirectTo "/"
 
-  -- Leave a project and redirect to home page
+  -- Allow user to leave a project and redirect to home page
   post "/projects/:pid/leave" $ withUserOrDoAuth $ \user -> do
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
@@ -176,7 +172,7 @@ server = mkRouter $ do
 
 -- Tasks -----
 
-
+  -- Remove task from database
   post "/tasks/:tid/remove" $ do
     (Just sid) <- queryParam "tid"
     let tid = read (S8.unpack sid) :: ObjectId
@@ -208,9 +204,7 @@ server = mkRouter $ do
     liftLIO $ withTaskPolicyModule $ save "tasks" newtdoc
     redirectBack
 
-  
-
-  -- Post a new project
+  -- Process a new task
   post "/projects/:pid/tasks" $ do
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
@@ -265,7 +259,7 @@ server = mkRouter $ do
     mluserdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
     userdoc <- liftLIO $ unlabel $ fromJust mluserdoc
     let oldnotifs = "notifs" `at` userdoc :: [String]
-    let newnotifs = (take (index) oldnotifs ++ drop (index + 1) oldnotifs) -- remove the notification from the given index
+    let newnotifs = (take (index) oldnotifs ++ drop (index + 1) oldnotifs) -- remove the notification at the given index
     let newdoc = trace ("new notifs: " ++ show newnotifs ++ " old notifs: " ++ show oldnotifs) $ merge ["notifs" -: newnotifs] userdoc
     liftLIO $ withTaskPolicyModule $ save "users" newdoc
     matype <- requestHeader "accept"
@@ -274,7 +268,7 @@ server = mkRouter $ do
          return $ ok "application/json" (encode $ toJSON ([] :: [User]))
       _ -> redirectBack
 
-  -- Remove all notifications
+  -- Remove all notifications from database
   post "/notifs/removeall" $ do
     user <- getHailsUser 
     let ctype = "text/json"
@@ -290,6 +284,46 @@ server = mkRouter $ do
       Just atype | "application/json" `S8.isInfixOf` atype ->
          return $ ok "application/json" (encode $ toJSON ([] :: [User]))
       _ -> redirectBack
+
+
+-- Comments -----
+
+commentController :: RESTController
+commentController = do
+  REST.index $ withUserOrDoAuth $ \user -> indexComs user
+
+  REST.create $ withUserOrDoAuth $ \user -> trace "create" $ do
+    let ctype = "text/json"
+        respJSON403 msg = Response status403 [(hContentType, ctype)] $
+                           L8.pack $ "{ \"error\" : " ++
+                                       show (msg :: String) ++ "}"
+    ldoc <- request >>= labeledRequestToHson
+    liftLIO . withTaskPolicyModule $ insert "comments" ldoc
+    indexComs user
+
+  REST.update $ withUserOrDoAuth $ \user -> trace "update" $ do
+    let ctype = "text/json"
+        respJSON403 msg = Response status403 [(hContentType, ctype)] $
+                           L8.pack $ "{ \"error\" : " ++
+                                       show (msg :: String) ++ "}"
+    doc <- include ["_id", "author", "proj", "text", "parent"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
+    sid <- lookup "_id" doc
+    let cid = read sid :: ObjectId
+    let newdoc = merge [ "_id" -: cid ] doc
+    liftLIO $ withTaskPolicyModule $ save "comments" newdoc
+    indexComs user
+
+indexComs username = do
+  sid <- queryParam "pid"
+  let str = S8.unpack $ fromJust sid  -- proj id as a string
+  let pid = read str -- proj id as an ObjectId
+  comments <- liftLIO . withTaskPolicyModule $ D.findAll $ select [] "comments" 
+  matype <- requestHeader "accept"
+  case matype of
+    Just atype | "application/json" `S8.isInfixOf` atype ->
+       return $ ok "application/json" (encode $ toJSON comments)
+    _ -> return $ respondHtmlC (toHtml $ T.unpack username) $ showPage comments username pid
+
 
 ---- Helper Functions --- 
 
@@ -348,45 +382,6 @@ removeProj users proj = do
       let newdoc = merge ["projects" -: newprojs] u
       liftLIO $ withTaskPolicyModule $ save "users" newdoc
       removeProj (tail users) proj
-
-
--- Comments -----
-
-commentController :: RESTController
-commentController = do
-  REST.index $ withUserOrDoAuth $ \user -> indexComs user
-
-  REST.create $ withUserOrDoAuth $ \user -> trace "create" $ do
-    let ctype = "text/json"
-        respJSON403 msg = Response status403 [(hContentType, ctype)] $
-                           L8.pack $ "{ \"error\" : " ++
-                                       show (msg :: String) ++ "}"
-    ldoc <- request >>= labeledRequestToHson
-    liftLIO . withTaskPolicyModule $ insert "comments" ldoc
-    indexComs user
-
-  REST.update $ withUserOrDoAuth $ \user -> trace "update" $ do
-    let ctype = "text/json"
-        respJSON403 msg = Response status403 [(hContentType, ctype)] $
-                           L8.pack $ "{ \"error\" : " ++
-                                       show (msg :: String) ++ "}"
-    doc <- include ["_id", "author", "proj", "text", "parent"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
-    sid <- lookup "_id" doc
-    let cid = read sid :: ObjectId
-    let newdoc = merge [ "_id" -: cid ] doc
-    liftLIO $ withTaskPolicyModule $ save "comments" newdoc
-    indexComs user
-
-indexComs username = do
-  sid <- queryParam "pid"
-  let str = S8.unpack $ fromJust sid  -- proj id as a string
-  let pid = read str -- proj id as an ObjectId
-  comments <- liftLIO . withTaskPolicyModule $ D.findAll $ select [] "comments" 
-  matype <- requestHeader "accept"
-  case matype of
-    Just atype | "application/json" `S8.isInfixOf` atype ->
-       return $ ok "application/json" (encode $ toJSON comments)
-    _ -> return $ respondHtmlC (toHtml $ T.unpack username) $ showPage comments username pid
 
 -- Returns a list of all documents in the database satisfying the Query
 findAll :: Query -> DBAction [HsonDocument]

@@ -106,88 +106,12 @@ displayProjectPage user tasks project = do
     div ! class_ "span2" $ do
       h4 $ "Members:"
       ul $ forM_ (projectMembers project) $ \user -> li $ toHtml $ T.unpack user
-    div ! class_ "span5" ! id "alltasks" $ do
-      div $ do
-        h2 ! class_ "top" $ "Team Tasks"
-      div $ do
-        if not $ projectCompleted project 
-        then do
-          button ! id "newtaskbttn" $ "Add New Task"
-          let pid = show $ fromJust $ projectId project
-          let act = "/projects/" ++ pid ++ "/tasks"
-          form ! id "newtaskform" ! action (toValue act) ! method "post" $ do
-            p $ do
-              label ! for "name" $ "Task: "
-              textarea ! name "name" $ ""
-	    p $ do 
-              "Members:"
-	      br
-	      forM_ (projectMembers project) $ \member -> do
-				  input ! type_ "checkbox" ! class_ "memberCheckbox" ! name "members[]" ! value (toValue member) 
-				  toHtml $ T.unpack member  
-            p $ do
-              label ! for "priority" $ "Task priority: "
-              select ! name "priority" $ do
-                option ! value "3" $ "Low"
-                option ! value "2" $ "Medium"
-                option ! value "1" $ "High"
-            input ! type_ "hidden" ! name "project" ! value (toValue pid)
-            input ! type_ "hidden" ! name "completed" ! value "False"
-            button ! type_ "submit" $ "Add Task"
-        else ""
-      div ! id "tasks" $ do
-        let mytasks = filter (\t -> (userName user) `elem` (taskMembers t)) tasks
-        if (mytasks == [])
-          then ""
-          else h3 ! id "taskheader" $ "My tasks" 
-        div ! id "incomplete_tasks" $ do
-          let incomplete = filter (not . taskCompleted) mytasks
-          let low = filter (\t -> (taskPriority t) == "3") incomplete
-          let med = filter (\t -> (taskPriority t) == "2") incomplete
-          let high = filter (\t -> (taskPriority t) == "1") incomplete
-          if (incomplete == [])
-            then ""
-            else h4 ! id "curtasks" $ "In progress:"
-          div ! id "tasks1" ! class_ "tasklist" $ do
-	    if (high == []) then ""
-	    else do
-	      h5 ! id "HighHeader" ! class_ "blue" $ "High Priority: "
-	      forM_ high $ \task -> showTask task
-          div ! id "tasks2" ! class_ "tasklist" $ do
-	    if (med == []) then ""
-	    else do
-	      h5 ! id "MediumHeader" ! class_ "blue" $ "Medium Priority: "
-	      forM_ med $ \task -> showTask task
-          div ! id "tasks3" ! class_ "tasklist" $ do
-	    if (low == []) then ""
-	    else do
-	      h5 ! id "LowHeader" ! class_ "blue" $ "Low Priority: "
-	      forM_ low $ \task -> showTask task
-        div $ do
-          let complete = sortBy (comparing taskPriority) $ filter taskCompleted mytasks
-          let low = filter (\t -> (taskPriority t) == "3") complete
-          let med = filter (\t -> (taskPriority t) == "2") complete
-          let high = filter (\t -> (taskPriority t) == "1") complete
-          if (complete == [])
-            then ""
-            else h4 $ "Completed:"
-          div ! id "complete_tasks" ! class_ "tasklist" $ do
-            p ! class_ "hightasks" $ forM_ high $ \task -> showCompletedTask task
-            p ! class_ "medtasks" $ forM_ med $ \task -> showCompletedTask task
-            p ! class_ "lowtasks" $ forM_ low $ \task -> showCompletedTask task
-        div ! id "other_tasks" $ do
-          let otasks = filter (\t -> not $ (userName user) `elem` (taskMembers t)) tasks
-          if (otasks == [])
-            then ""
-            else do
-              h3 ! id "othertasksheader" $ "Other tasks"
-              forM_ otasks $ \task -> 
-                li $ toHtml $ showTask task
-        h2 $ ""
+    div ! class_ "span5" ! id "alltasks" $ displayTasks user tasks project
     div ! class_ "span5" ! id "comments" $ do
       h2 $ "Project Chat"
       let pid = show $ fromJust $ projectId project
       iframe ! id "commentframe" ! src (toValue ("/" ++ pid ++ "/comments")) $ ""
+
   
 newProject :: UserName -> [UserName] -> Html
 newProject user members = do
@@ -264,6 +188,86 @@ editProject project user allnames  = do
 
 
 -- Tasks -----
+
+displayTasks :: User -> [Task] -> Project -> Html
+displayTasks user tasks project = do
+  div $ do
+    h2 ! class_ "top" $ "Team Tasks"
+  div $ do
+    if not $ projectCompleted project 
+    then do
+      button ! id "newtaskbttn" $ "Add New Task"
+      let pid = show $ fromJust $ projectId project
+      let act = "/projects/" ++ pid ++ "/tasks"
+      form ! id "newtaskform" ! action (toValue act) ! method "post" $ do
+        p $ do
+          label ! for "name" $ "Task: "
+          textarea ! name "name" $ ""
+        p $ do 
+          "Members:"
+          br
+          forM_ (projectMembers project) $ \member -> do
+            input ! type_ "checkbox" ! class_ "memberCheckbox" ! name "members[]" ! value (toValue member) 
+            toHtml $ T.unpack member
+        p $ do
+          label ! for "priority" $ "Task priority: "
+          select ! name "priority" $ do
+            option ! value "3" $ "Low"
+            option ! value "2" $ "Medium"
+            option ! value "1" $ "High"
+        input ! type_ "hidden" ! name "project" ! value (toValue pid)
+        input ! type_ "hidden" ! name "completed" ! value "False"
+        button ! type_ "submit" $ "Add Task"
+    else ""
+  div ! id "tasks" $ do
+    let mytasks = filter (\t -> (userName user) `elem` (taskMembers t)) tasks
+    if (mytasks == [])
+      then ""
+      else h3 ! id "taskheader" $ "My tasks" 
+    div ! id "incomplete_tasks" $ do
+      let incomplete = filter (not . taskCompleted) mytasks
+      let low = filter (\t -> (taskPriority t) == "3") incomplete
+      let med = filter (\t -> (taskPriority t) == "2") incomplete
+      let high = filter (\t -> (taskPriority t) == "1") incomplete
+      if (incomplete == [])
+        then ""
+        else h4 ! id "curtasks" $ "In progress:"
+      div ! id "tasks1" ! class_ "tasklist" $ do
+        if (high == []) then ""
+        else do
+          h5 ! id "HighHeader" ! class_ "blue" $ "High Priority: "
+          forM_ high $ \task -> showTask task
+      div ! id "tasks2" ! class_ "tasklist" $ do
+        if (med == []) then ""
+        else do
+          h5 ! id "MediumHeader" ! class_ "blue" $ "Medium Priority: "
+          forM_ med $ \task -> showTask task
+      div ! id "tasks3" ! class_ "tasklist" $ do
+        if (low == []) then ""
+        else do
+          h5 ! id "LowHeader" ! class_ "blue" $ "Low Priority: "
+          forM_ low $ \task -> showTask task
+    div $ do
+      let complete = sortBy (comparing taskPriority) $ filter taskCompleted mytasks
+      let low = filter (\t -> (taskPriority t) == "3") complete
+      let med = filter (\t -> (taskPriority t) == "2") complete
+      let high = filter (\t -> (taskPriority t) == "1") complete
+      if (complete == [])
+        then ""
+        else h4 $ "Completed:"
+      div ! id "complete_tasks" ! class_ "tasklist" $ do
+        p ! class_ "hightasks" $ forM_ high $ \task -> showCompletedTask task
+        p ! class_ "medtasks" $ forM_ med $ \task -> showCompletedTask task
+        p ! class_ "lowtasks" $ forM_ low $ \task -> showCompletedTask task
+    div ! id "other_tasks" $ do
+      let otasks = filter (\t -> not $ (userName user) `elem` (taskMembers t)) tasks
+      if (otasks == [])
+        then ""
+        else do
+          h3 ! id "othertasksheader" $ "Other tasks"
+          forM_ otasks $ \task -> 
+            li $ toHtml $ showTask task
+    h2 $ ""
 
 showTask :: Task -> Html
 showTask task = do
@@ -396,9 +400,6 @@ stylesheet uri = link ! rel "stylesheet" ! type_ "text/css" ! href (toValue uri)
 
 respondHtml ctitle content = okHtml $ renderHtml $ docTypeHtml $ do
   head $ do
-    --div ! class_ "container " $ do
-      --div ! class_ "navbar" $ do
-        --div ! class_ "brand" $ a ! href "/" $ "Home"
     stylesheet "/static/css/bootstrap.css"
     title ctitle
   body ! id "body" $ do
@@ -422,6 +423,7 @@ respondHtml ctitle content = okHtml $ renderHtml $ docTypeHtml $ do
     script ! src "/static/js/additional-methods.js" $ ""
     script ! src "/static/js/additional-methods.min.js" $ ""
     script ! src "/static/js/tasks.js" $ ""
+    script ! src "/static/js/newtask.js" $ ""
     script ! src "/static/js/user_select.js" $ ""
     content
 
