@@ -107,7 +107,6 @@ displayProjectPage user tasks project = do
       h4 $ "Members:"
       ul $ forM_ (projectMembers project) $ \user -> li $ toHtml $ T.unpack user
     div ! class_ "span5" ! id "alltasks" $ displayTasks user tasks project
->>>>>>> 14a0e373270611a482cde1bd173080783b16ad67
     div ! class_ "span5" ! id "comments" $ do
       h2 $ "Project Chat"
       let pid = show $ fromJust $ projectId project

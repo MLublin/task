@@ -1,2 +1,6 @@
 *.hi
 *.o
+*.swp
+*.swo
+.gitignore
+
