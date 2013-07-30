@@ -126,9 +126,7 @@ server = mkRouter $ do
                                     return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
                                  alldocs
     liftLIO $ withTaskPolicyModule $ addProjects memDocs pid
-    modifieddocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
-    let modifiedMemDocs = filter (\doc -> ("name" `at` doc) `elem` members) modifieddocs 
-    liftLIO $ withTaskPolicyModule $ addNotifs modifiedMemDocs ("You were added to a new project: " ++ ("title" `at` project) ++ " by " ++ (T.unpack $ fromJust user))
+    liftLIO $ withTaskPolicyModule $ addNotifs memDocs ("You were added to a new project: " ++ ("title" `at` project) ++ " by " ++ (T.unpack $ fromJust user))
     respond $ redirectTo ("/projects/" ++ show pid)
 
   -- Display the Edit Project page
@@ -139,7 +137,11 @@ server = mkRouter $ do
     proj <- (liftLIO $ unlabel $ fromJust mpdoc) >>= fromDocument
     alludocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
     let allnames = map (\doc -> "name" `at` doc) alludocs
-    let memDocs = filter (\u -> ("name" `at` u) `elem` (projectMembers proj)) alludocs
+    let members = projectMembers proj
+    memDocs <- liftLIO $ filterM (\ldoc -> do
+                                    doc <- liftLIO $ unlabel ldoc 
+                                    return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
+                                 alludocs
     liftLIO $ withTaskPolicyModule $ addNotifs memDocs ((T.unpack user) ++ " edited a project: " ++ (projectTitle proj))
     respond $ respondHtml "Edit" $ editProject proj user allnames
   
@@ -233,12 +235,12 @@ server = mkRouter $ do
                                     doc <- liftLIO $ unlabel ldoc 
                                     return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
                                  alludocs
-    alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"  -- unlabeled version
-    let unlabeledmemDocs = filter (\u -> ("name" `at` u) `elem` members) alldocs
+    --alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"  -- unlabeled version
+    --let unlabeledmemDocs = filter (\u -> ("name" `at` u) `elem` members) alldocs
     liftLIO $ withTaskPolicyModule $ do
       save "projects" newDoc
       addTasks memDocs tid
-      liftLIO $ withTaskPolicyModule $ addNotifs unlabeledmemDocs (("You were assigned a task: " ++ ("name" `at` task) ++ " in the project: " ++ ("title" `at` pdoc)) :: String)
+      liftLIO $ withTaskPolicyModule $ addNotifs memDocs (("You were assigned a task: " ++ ("name" `at` task) ++ " in the project: " ++ ("title" `at` pdoc)) :: String)
     respond $ redirectTo ("/projects/" ++ show pid)   
 
 
@@ -339,6 +341,7 @@ indexComs username = do
 
 ---- Helper Functions --- 
 
+{-
 -- Modifies the database by adding the second argument notif to each user document's "notif" field 
 addNotifs :: [HsonDocument] -> String -> DBAction () 
 addNotifs memDocs notif = do
@@ -351,6 +354,7 @@ addNotifs memDocs notif = do
       let newDoc = merge ["notifs" -: newNotifs] doc
       save "users" newDoc
       addNotifs (tail memDocs) notif
+-}
 
 -- Modifies the database by removing the second argument proj from each uer document's "projects" field
 removeProj :: [UserName] -> ObjectId -> DBAction () 
