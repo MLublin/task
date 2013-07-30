@@ -49,12 +49,14 @@ instance PolicyModule TaskPolicyModule where
           secrecy ==> this
           integrity ==> unrestricted
         document $ \doc -> do
-          let pid = "project" `at` doc
-          mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
-          let pdoc = unlabel $ fromJust mlpdoc
-          let members = "members" `at` pdoc
-          readers ==> List.foldl' (\/) this members
-          writers ==> List.foldl' (\/) this members
+          --let pid = "project" `at` doc
+          --mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
+          --let pdoc = unlabel $ fromJust mlpdoc
+          --let members = "members" `at` pdoc
+          --readers ==> List.foldl' (\/) this members
+          --writers ==> List.foldl' (\/) this members
+          readers ==> unrestricted
+          writers ==> unrestricted
       collection "projects" $ do
         access $ do
           readers ==> unrestricted
@@ -63,9 +65,11 @@ instance PolicyModule TaskPolicyModule where
           secrecy ==> this
           integrity ==> unrestricted
         document $ \doc -> do
-          let members = map T.unpack ("members" `at` doc :: [UserName])
-          readers ==> List.foldl' (\/) this members
-          writers ==> List.foldl' (\/) this members
+          --let members = map T.unpack ("members" `at` doc :: [UserName])
+          --readers ==> List.foldl' (\/) this members
+          --writers ==> List.foldl' (\/) this members
+          readers ==> unrestricted
+          writers ==> unrestricted
       collection "comments" $ do
         access $ do
           readers ==> unrestricted
@@ -74,13 +78,15 @@ instance PolicyModule TaskPolicyModule where
           secrecy ==> this
           integrity ==> unrestricted
         document $ \doc -> do
-          let pid = "proj" `at` doc
-          --mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
-          mlpdoc <- findOneProj pid
-          let pdoc = unlabel $ fromJust mlpdoc
-          let members = "members" `at` pdoc
-          readers ==> List.foldl' (\/) this members
-          writers ==> List.foldl' (\/) this members
+          --let pid = "proj" `at` doc
+          ----mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
+          --mlpdoc <- findOneProj pid
+          --let pdoc = unlabel $ fromJust mlpdoc
+          --let members = "members" `at` pdoc
+          --readers ==> List.foldl' (\/) this members
+          --writers ==> List.foldl' (\/) this members
+          readers ==> unrestricted
+          writers ==> unrestricted
         field "_id" key
     return $ TaskPolicyModuleTCB priv
         where this = privDesc priv

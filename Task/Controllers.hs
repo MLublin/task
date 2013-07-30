@@ -83,7 +83,16 @@ server = mkRouter $ do
                                     return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
                                  alldocs
     liftLIO $ withTaskPolicyModule $ addProjects memDocs pid
-    -- to do: remove project from the documents of users who were removed
+    --remove project from the documents of users who were removed
+    let oldMembers = "members" `at` oldproj
+    let removedMembers = filter (\member -> not $ member `elem` members) oldMembers
+    forM_ removedMembers $ \mem -> do 
+      mlmemdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: mem] "users"
+      memdoc <- liftLIO $ unlabel $ fromJust mlmemdoc
+      let projs = "projects" `at` memdoc
+      let newprojs = filter (\p -> p /= pid) projs
+      let newdoc = merge ["projects" -: newprojs] memdoc
+      liftLIO$ withTaskPolicyModule $ save "users" memdoc 
     respond $ redirectTo ("/projects/" ++ show pid)
     
   -- Display the Project Page  
@@ -125,9 +134,9 @@ server = mkRouter $ do
                                     doc <- liftLIO $ unlabel ldoc 
                                     return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
                                  alldocs
-    liftLIO $ withTaskPolicyModule $ addProjects memDocs pid
     (Just lpdoc) <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
     liftLIO $ withTaskPolicyModule $ addNotifs memDocs ("You were added to a new project: " ++ ("title" `at` project) ++ " by " ++ (T.unpack $ fromJust user)) lpdoc
+    liftLIO $ withTaskPolicyModule $ addProjects memDocs pid
     respond $ redirectTo ("/projects/" ++ show pid)
 
   -- Display the Edit Project page
