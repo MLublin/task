@@ -126,7 +126,8 @@ server = mkRouter $ do
                                     return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
                                  alldocs
     liftLIO $ withTaskPolicyModule $ addProjects memDocs pid
-    liftLIO $ withTaskPolicyModule $ addNotifs memDocs ("You were added to a new project: " ++ ("title" `at` project) ++ " by " ++ (T.unpack $ fromJust user))
+    (Just lpdoc) <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
+    liftLIO $ withTaskPolicyModule $ addNotifs memDocs ("You were added to a new project: " ++ ("title" `at` project) ++ " by " ++ (T.unpack $ fromJust user)) lpdoc
     respond $ redirectTo ("/projects/" ++ show pid)
 
   -- Display the Edit Project page
@@ -134,15 +135,18 @@ server = mkRouter $ do
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
     mpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
+    let lpdoc = fromJust mpdoc
     proj <- (liftLIO $ unlabel $ fromJust mpdoc) >>= fromDocument
-    alludocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
-    let allnames = map (\doc -> "name" `at` doc) alludocs
+    alludocs <- liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
+    alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
+
+    let allnames = map (\doc -> "name" `at` doc) alldocs
     let members = projectMembers proj
     memDocs <- liftLIO $ filterM (\ldoc -> do
                                     doc <- liftLIO $ unlabel ldoc 
                                     return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
                                  alludocs
-    liftLIO $ withTaskPolicyModule $ addNotifs memDocs ((T.unpack user) ++ " edited a project: " ++ (projectTitle proj))
+    liftLIO $ withTaskPolicyModule $ addNotifs memDocs ((T.unpack user) ++ " edited a project: " ++ (projectTitle proj)) lpdoc
     respond $ respondHtml "Edit" $ editProject proj user allnames
   
   -- Remove a project and redirect to home page
@@ -150,11 +154,15 @@ server = mkRouter $ do
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
     mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
-    pdoc <- liftLIO $ unlabel $ fromJust mlpdoc
+    let lpdoc = fromJust mlpdoc
+    pdoc <- liftLIO $ unlabel lpdoc
     let projmembers = "members" `at` pdoc
-    alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
-    let memDocs = trace (show alldocs) $ filter (\u -> ("name" `at` u) `elem` projmembers) alldocs
-    liftLIO $ withTaskPolicyModule $ addNotifs memDocs (T.unpack user ++ " removed a project: " ++ ("title" `at` pdoc))
+    alldocs <- liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
+    memDocs <- liftLIO $ filterM (\ldoc -> do
+                                    doc <- liftLIO $ unlabel ldoc 
+                                    return (("name" `at` doc) `elem` projmembers) :: LIO DCLabel Bool)
+                                 alldocs
+    liftLIO $ withTaskPolicyModule $ addNotifs memDocs (T.unpack user ++ " removed a project: " ++ ("title" `at` pdoc)) lpdoc
     liftLIO $ withTaskPolicyModule $ removeProj projmembers pid
     respond $ redirectTo "/"
 
@@ -201,15 +209,21 @@ server = mkRouter $ do
     let tid = read (S8.unpack sid) :: ObjectId
     let completed  = ["completed" -: ("True" :: String)]
     mltdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: tid] "tasks" 
+    let ltdoc = fromJust mltdoc
     tdoc <- liftLIO $ unlabel $ fromJust mltdoc
     let newtdoc = merge completed tdoc
-    let members = "members" `at` tdoc
-    allusers <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
-    let memdocs = filter (\u -> (("name" `at` u) :: UserName) `elem` members) allusers
+    let members = ("members" `at` tdoc :: [UserName])
+    allusers <- liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
+    --let memDocs = allusers
+    memDocs <- liftLIO $ filterM (\ldoc -> do
+                                    doc <- liftLIO $ unlabel ldoc 
+                                    return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
+                                 allusers
     let projId = read ("project" `at` tdoc) :: ObjectId
     mlproj <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: (projId :: ObjectId)] "projects"
     proj <- liftLIO $ unlabel $ fromJust mlproj
-    liftLIO $ withTaskPolicyModule $ addNotifs memdocs (("A task was marked as completed: " ++ ("name" `at` tdoc) ++ " in the project: " ++ ("title" `at` proj)) :: String)
+    liftLIO $ withTaskPolicyModule $ addNotifs memDocs (("A task was marked as completed: " ++ ("name" `at` tdoc) ++ " in the project: " ++ ("title" `at` proj)) :: String) ltdoc
+    
     liftLIO $ withTaskPolicyModule $ save "tasks" newtdoc
     redirectBack
 
@@ -237,10 +251,11 @@ server = mkRouter $ do
                                  alludocs
     --alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"  -- unlabeled version
     --let unlabeledmemDocs = filter (\u -> ("name" `at` u) `elem` members) alldocs
+    (Just ltdoc) <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: tid] "tasks"
     liftLIO $ withTaskPolicyModule $ do
       save "projects" newDoc
       addTasks memDocs tid
-      liftLIO $ withTaskPolicyModule $ addNotifs memDocs (("You were assigned a task: " ++ ("name" `at` task) ++ " in the project: " ++ ("title" `at` pdoc)) :: String)
+      liftLIO $ withTaskPolicyModule $ addNotifs memDocs (("You were assigned a task: " ++ ("name" `at` task) ++ " in the project: " ++ ("title" `at` pdoc)) :: String) ltdoc
     respond $ redirectTo ("/projects/" ++ show pid)   
 
 

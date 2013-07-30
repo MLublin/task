@@ -49,14 +49,12 @@ instance PolicyModule TaskPolicyModule where
           secrecy ==> this
           integrity ==> unrestricted
         document $ \doc -> do
-          --let pid = "project" `at` doc
-          --mlpdoc <- findOne $ select ["_id" -: pid] "projects"
-          --let pdoc = unlabel $ fromJust mlpdoc
-          --let members = "members" `at` pdoc
-          --readers ==> List.foldl' (\/) this members
-          --writers ==> List.foldl' (\/) this members
-          readers ==> unrestricted
-          writers ==> unrestricted
+          let pid = "project" `at` doc
+          mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
+          let pdoc = unlabel $ fromJust mlpdoc
+          let members = "members" `at` pdoc
+          readers ==> List.foldl' (\/) this members
+          writers ==> List.foldl' (\/) this members
       collection "projects" $ do
         access $ do
           readers ==> unrestricted
@@ -65,11 +63,9 @@ instance PolicyModule TaskPolicyModule where
           secrecy ==> this
           integrity ==> unrestricted
         document $ \doc -> do
-          --let members = map T.unpack ("members" `at` doc :: [UserName])
-          --readers ==> List.foldl' (\/) this members
-          --writers ==> List.foldl' (\/) this members
-          readers ==> unrestricted
-          writers ==> unrestricted
+          let members = map T.unpack ("members" `at` doc :: [UserName])
+          readers ==> List.foldl' (\/) this members
+          writers ==> List.foldl' (\/) this members
       collection "comments" $ do
         access $ do
           readers ==> unrestricted
@@ -77,15 +73,23 @@ instance PolicyModule TaskPolicyModule where
         clearance $ do
           secrecy ==> this
           integrity ==> unrestricted
-        document $ \_ -> do
-          readers ==> unrestricted
-          writers ==> unrestricted
+        document $ \doc -> do
+          let pid = "proj" `at` doc
+          --mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
+          mlpdoc <- findOneProj pid
+          let pdoc = unlabel $ fromJust mlpdoc
+          let members = "members" `at` pdoc
+          readers ==> List.foldl' (\/) this members
+          writers ==> List.foldl' (\/) this members
         field "_id" key
     return $ TaskPolicyModuleTCB priv
         where this = privDesc priv
 
 withTaskPolicyModule :: DBAction a -> DC a
 withTaskPolicyModule act = withPolicyModule (\(_ :: TaskPolicyModule) -> act)
+
+findOneProj pid = do
+    return liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
 
 -- Modifies the database by adding the second argument pId to each user document's "projects" field
 addProjects :: [LabeledHsonDocument] -> ObjectId -> DBAction ()
@@ -132,14 +136,15 @@ addTasks lmemdocs tid = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpri
     else trace "addProjects: label was not high enough" $ return ()
 
 -- Modifies the database by adding the second argument notif to each user document's "notif" field 
-addNotifs :: [LabeledHsonDocument] -> String -> DBAction ()
-addNotifs lmemdocs notif = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
+-- ldoc is the labeled document for the source of the notification
+addNotifs :: [LabeledHsonDocument] -> String -> LabeledHsonDocument -> DBAction ()
+addNotifs lmemdocs notif ldoc = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
   if (length lmemdocs == 0)
   then return ()
   else do
     --mluser <- findOne $ select ["name" -: tid] "users"
     --let luser = fromJust mluser
-    if (labelOf (head lmemdocs)) `canFlowTo` (labelOf ltask)
+    if (labelOf (head lmemdocs)) `canFlowTo` (labelOf ldoc)
     then do
       memDocs <- mapM (liftLIO . unlabel) lmemdocs
       let doc = head memDocs
@@ -147,6 +152,6 @@ addNotifs lmemdocs notif = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pm
       let newNotifs = notif:curNotifs
       let newDoc = merge ["notifs" -: newNotifs] doc
       save "users" newDoc
-      addNotifs (tail lmemdocs) notif
+      addNotifs (tail lmemdocs) notif ldoc
     else trace "addProjects: label was not high enough" $ return ()
 
