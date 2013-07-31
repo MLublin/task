@@ -6,7 +6,8 @@ module Task.Policy (
    , addProjects
    , addTasks
    , addNotifs
-   ) where
+   , insertTask
+  ) where
 
 import Data.Typeable
 import Debug.Trace
@@ -19,7 +20,10 @@ import Hails.Web.User
 import Data.Maybe
 import qualified Data.List as List
 import qualified Data.Text as T
-
+import           Hails.PolicyModule.Groups
+import qualified Data.ByteString.Char8 as S8
+import Hails.Database.Structured
+import LIO.TCB
 
 data TaskPolicyModule = TaskPolicyModuleTCB DCPriv deriving Typeable
 
@@ -54,9 +58,12 @@ instance PolicyModule TaskPolicyModule where
           --let pdoc = unlabel $ fromJust mlpdoc
           --let members = "members" `at` pdoc
           --readers ==> List.foldl' (\/) this members
-          --writers ==> List.foldl' (\/) this members
-          readers ==> unrestricted
-          writers ==> unrestricted
+          --writers ==> List.foldl' (\/) this members 
+          let projid = ("#projId=" :: String) ++ (show $ ("project" `at` doc :: ObjectId)) :: String
+          readers ==> projid \/ this
+          writers ==> projid \/ this
+        --    readers ==> unrestricted
+	--    writers ==> unrestricted
       collection "projects" $ do
         access $ do
           readers ==> unrestricted
@@ -161,3 +168,23 @@ addNotifs lmemdocs notif ldoc = liftLIO $ withPolicyModule $ \(TaskPolicyModuleT
       addNotifs (tail lmemdocs) notif ldoc
     else trace "addProjects: label was not high enough" $ return ()
 
+instance Groups TaskPolicyModule where
+  groupsInstanceEndorse = TaskPolicyModuleTCB (PrivTCB $ toCNF True)
+  groups _ p pgroup = trace (show pgroup) $ case () of
+    _ | "#projId=" `S8.isPrefixOf` group -> do
+      let _id = read (S8.unpack $ S8.drop 7 group) :: ObjectId
+      mproj <- findOne $ select ["_id" -: (_id :: ObjectId)]  "projects" 
+      case mproj of
+        Nothing -> return [pgroup]
+        Just lproj -> do
+	  proj <- liftLIO $ unlabel lproj
+	  return . map toPrincipal $ "members" `at` proj
+    _ -> return [pgroup]
+    where group = principalName pgroup
+          toPrincipal = principal . T.unpack  
+          reviewPaperId = "#reviewPaperId="
+
+insertTask :: HsonDocument -> DBAction ObjectId
+insertTask task = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
+   tid  <- liftLIO $ trace ("inserting " ++ show task) $ withTaskPolicyModule $ insertP pmpriv "tasks" task 
+   return tid

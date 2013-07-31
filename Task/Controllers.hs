@@ -237,7 +237,7 @@ server = mkRouter $ do
     redirectBack
 
   -- Process a new task
-  post "/projects/:pid/tasks" $ do
+  post "/projects/:pid/tasks" $ trace "post /tasks called " $ do
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
     let ctype = "text/json"
@@ -247,8 +247,8 @@ server = mkRouter $ do
     taskdoc <- include ["name", "members", "project", "completed", "priority"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
     let members = ("members" `at` taskdoc)
     let task = merge ["members" -: (members :: [String])] taskdoc 
-    tid <- liftLIO $ withTaskPolicyModule $ insert "tasks" task -- todo: move to policy
-    mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select [ "_id" -: pid ] "projects"
+    tid <- liftLIO $ withTaskPolicyModule $ insertTask task
+    mlpdoc <- liftLIO $ trace "insert success" $ withTaskPolicyModule $ findOne $ select [ "_id" -: pid ] "projects"
     pdoc <- liftLIO $ unlabel $ fromJust mlpdoc
     let curTasks = "tasks" `at` pdoc
     let newTasks = tid:curTasks
@@ -261,10 +261,10 @@ server = mkRouter $ do
     --alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"  -- unlabeled version
     --let unlabeledmemDocs = filter (\u -> ("name" `at` u) `elem` members) alldocs
     (Just ltdoc) <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: tid] "tasks"
-    liftLIO $ withTaskPolicyModule $ do
+    liftLIO $ withTaskPolicyModule $ trace "264" $ do
       save "projects" newDoc
       addTasks memDocs tid
-      liftLIO $ withTaskPolicyModule $ addNotifs memDocs (("You were assigned a task: " ++ ("name" `at` task) ++ " in the project: " ++ ("title" `at` pdoc)) :: String) ltdoc
+      liftLIO $ trace "addTasks successful" $ withTaskPolicyModule $ addNotifs memDocs (("You were assigned a task: " ++ ("name" `at` task) ++ " in the project: " ++ ("title" `at` pdoc)) :: String) ltdoc
     respond $ redirectTo ("/projects/" ++ show pid)   
 
 
@@ -272,7 +272,7 @@ server = mkRouter $ do
 
   -- Add a new user
   post "/people" $ do
-    userdoc <- include ["name", "tasks"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
+    userdoc <- include ["name", "tasks"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO . unlabel))
     let usrdoc = merge [ "tasks"    -: ([] :: [ObjectId])
                        , "notifs" -: ([] :: [String])
                        , "projects" -: ([] :: [ObjectId]) ] userdoc
