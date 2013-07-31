@@ -24,6 +24,7 @@ import           Hails.PolicyModule.Groups
 import qualified Data.ByteString.Char8 as S8
 import Hails.Database.Structured
 import LIO.TCB
+import Task.Models
 
 data TaskPolicyModule = TaskPolicyModuleTCB DCPriv deriving Typeable
 
@@ -146,14 +147,14 @@ addTasks lmemdocs tid = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpri
       let newDoc = merge ["tasks" -: newTasks] doc
       saveP pmpriv "users" newDoc
       addTasks (tail lmemdocs) tid
-    else trace "addProjects: label was not high enough" $ return ()
+    else trace "addTasks: label was not high enough" $ return ()
 
 -- Modifies the database by adding the second argument notif to each user document's "notif" field 
 -- ldoc is the labeled document for the source of the notification
 addNotifs :: [LabeledHsonDocument] -> String -> LabeledHsonDocument -> DBAction ()
 addNotifs lmemdocs notif ldoc = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
   if (length lmemdocs == 0)
-  then return ()
+  then trace "added Notifs success" $ return ()
   else do
     --mluser <- findOne $ select ["name" -: tid] "users"
     --let luser = fromJust mluser
@@ -162,11 +163,11 @@ addNotifs lmemdocs notif ldoc = liftLIO $ withPolicyModule $ \(TaskPolicyModuleT
       memDocs <- mapM (liftLIO . unlabel) lmemdocs
       let doc = head memDocs
       let curNotifs = "notifs" `at` doc
-      let newNotifs = notif:curNotifs
-      let newDoc = merge ["notifs" -: newNotifs] doc
-      save "users" newDoc
+      let newNotifs = trace ("current notifs: " ++ show curNotifs) $ notif:curNotifs
+      let newDoc = trace ("new notifs: " ++ show newNotifs) $ merge ["notifs" -: newNotifs] doc
+      trace ("new document: " ++ show newDoc) $ saveP pmpriv "users" newDoc
       addNotifs (tail lmemdocs) notif ldoc
-    else trace "addProjects: label was not high enough" $ return ()
+    else trace "addNotifs: label was not high enough" $ return ()
 
 instance Groups TaskPolicyModule where
   groupsInstanceEndorse = TaskPolicyModuleTCB (PrivTCB $ toCNF True)
@@ -184,7 +185,7 @@ instance Groups TaskPolicyModule where
           toPrincipal = principal . T.unpack  
           reviewPaperId = "#reviewPaperId="
 
-insertTask :: HsonDocument -> DBAction ObjectId
+insertTask :: Task -> DBAction ObjectId
 insertTask task = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
-   tid  <- liftLIO $ trace ("inserting " ++ show task) $ withTaskPolicyModule $ insertP pmpriv "tasks" task 
+   tid  <- trace ("inserting " ++ show task) $ insertRecordP pmpriv task 
    return tid

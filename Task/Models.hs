@@ -28,7 +28,7 @@ import Data.Maybe
 import Data.Time.Clock
 import Data.Typeable
 
-import Task.Policy
+--import Task.Policy
 
 
 data Task = Task {
@@ -66,8 +66,8 @@ instance DCRecord Task where
                 , taskProject = read project }
 
   toDocument t =
-    [ "_id"  -: taskId t
-    , "name" -: taskName t
+    (maybe [] (\tid -> ["_id"  -: tid]) $ taskId t) ++
+    [ "name" -: taskName t
     , "members" -: (taskMembers t :: [UserName])
     , "completed" -: taskCompleted t
     , "priority" -: taskPriority t

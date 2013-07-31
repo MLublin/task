@@ -136,7 +136,12 @@ server = mkRouter $ do
                                  alldocs
     (Just lpdoc) <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
     liftLIO $ withTaskPolicyModule $ addNotifs memDocs ("You were added to a new project: " ++ ("title" `at` project) ++ " by " ++ (T.unpack $ fromJust user)) lpdoc
-    liftLIO $ withTaskPolicyModule $ addProjects memDocs pid
+    alldocs' <- liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
+    memDocs' <- liftLIO $ filterM (\ldoc -> do
+                                    doc <- liftLIO $ unlabel ldoc 
+                                    return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
+                                 alldocs'
+    liftLIO $ withTaskPolicyModule $ addProjects memDocs' pid
     respond $ redirectTo ("/projects/" ++ show pid)
 
   -- Display the Edit Project page
@@ -247,10 +252,11 @@ server = mkRouter $ do
     taskdoc <- include ["name", "members", "project", "completed", "priority"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
     let members = ("members" `at` taskdoc)
     let task = merge ["members" -: (members :: [String])] taskdoc 
-    tid <- liftLIO $ withTaskPolicyModule $ insertTask task
+    task' <- fromDocument task
+    tid <- liftLIO $ withTaskPolicyModule $ insertTask task' 
     mlpdoc <- liftLIO $ trace "insert success" $ withTaskPolicyModule $ findOne $ select [ "_id" -: pid ] "projects"
-    pdoc <- liftLIO $ unlabel $ fromJust mlpdoc
-    let curTasks = "tasks" `at` pdoc
+    pdoc <- liftLIO $ unlabel $ trace "253" $ fromJust mlpdoc
+    let curTasks = trace "254" $ "tasks" `at` pdoc
     let newTasks = tid:curTasks
     let newDoc = merge ["tasks" -: newTasks] pdoc
     alludocs <- liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
