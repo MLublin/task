@@ -80,17 +80,15 @@ data User = User {
   userId :: Maybe ObjectId,
   userName :: UserName,
   userNotifs :: [String],
-  userTasks :: [ObjectId],
   userInvites :: [ObjectId],
   userProjects :: [ObjectId]
 } deriving (Show, Eq, Typeable)
 
 instance ToJSON User where
-  toJSON (User id name notifs t i p) =
+  toJSON (User id name notifs i p) =
     object [ "_id"       .= (show $ fromJust id)
            , "name"      .= name
            , "notifs"    .= notifs
-           , "tasks"     .= show t
            , "invites"   .= show i
            , "projects"  .= show p
            ]
@@ -102,11 +100,9 @@ instance DCRecord User where
     notifs <- lookup "notifs" doc
     let projects = at "projects" doc
     let invites = at "invites" doc
-    let tasks = at "tasks" doc
     trace "returning user" $ return User { userId = uid
                 , userName = name
                 , userNotifs = notifs
-                , userTasks = tasks
                 , userInvites = invites
                 , userProjects = projects }
 
@@ -114,7 +110,6 @@ instance DCRecord User where
     [ "_id"  -: userId u
     , "name" -: userName u
     , "notifs" -: userNotifs u
-    , "tasks" -: userTasks u
     , "invites" -: userInvites u
     , "projects" -: userProjects u]
 

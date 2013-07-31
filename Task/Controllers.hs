@@ -108,11 +108,11 @@ server = mkRouter $ do
           then respond $ redirectTo "/"
           else do
             mudoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
-	    u <- (liftLIO $ unlabel $ fromJust mudoc) >>= fromDocument
+	    u <- (liftLIO $ unlabel $ trace "fromJust 111 display project page" $ fromJust mudoc) >>= fromDocument
             let tids = projectTasks proj
-            mtasks <- liftLIO $ withTaskPolicyModule $ mapM (findBy "tasks" "_id") tids 
-            let tasks = map fromJust mtasks
-            matype <- requestHeader "accept"
+            mtasks <- liftLIO $ withTaskPolicyModule $ mapM (\t -> findWhere $ select ["_id" -: t] "tasks") tids 
+            let tasks = trace ("mtasks: " ++ show mtasks) $ map fromJust mtasks
+            matype <- trace "line 115 " $ requestHeader "accept"
             case matype of
               Just atype | "application/json" `S8.isInfixOf` atype ->
                  return $ ok "application/json" (encode $ toJSON tasks)
@@ -269,7 +269,6 @@ server = mkRouter $ do
     (Just ltdoc) <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: tid] "tasks"
     liftLIO $ withTaskPolicyModule $ trace "264" $ do
       save "projects" newDoc
-      addTasks memDocs tid
       liftLIO $ trace "addTasks successful" $ withTaskPolicyModule $ addNotifs memDocs (("You were assigned a task: " ++ ("name" `at` task) ++ " in the project: " ++ ("title" `at` pdoc)) :: String) ltdoc
     respond $ redirectTo ("/projects/" ++ show pid)   
 
@@ -278,9 +277,8 @@ server = mkRouter $ do
 
   -- Add a new user
   post "/people" $ do
-    userdoc <- include ["name", "tasks"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO . unlabel))
-    let usrdoc = merge [ "tasks"    -: ([] :: [ObjectId])
-                       , "notifs" -: ([] :: [String])
+    userdoc <- include ["name"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO . unlabel))
+    let usrdoc = merge [ "notifs" -: ([] :: [String])
                        , "projects" -: ([] :: [ObjectId]) ] userdoc
     liftLIO $ withTaskPolicyModule $ insert "users" usrdoc
     respond $ redirectTo "/"

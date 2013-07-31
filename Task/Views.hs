@@ -308,7 +308,6 @@ newUser user = do
   form ! id "people" ! action "/people" ! method "post" $ do
     input ! type_ "hidden" ! name "name" ! value (toValue $ T.unpack user)
     input ! type_ "text" ! name "notifs[]" ! value ""
-    input ! type_ "text" ! name "tasks[]" ! value ""
     input ! type_ "text" ! name "projects[]" ! value ""
   script $ "document.getElementById('people').submit();"
 

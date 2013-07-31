@@ -4,7 +4,6 @@ module Task.Policy (
    TaskPolicyModule
    , withTaskPolicyModule
    , addProjects
-   , addTasks
    , addNotifs
    , insertTask
   ) where
@@ -129,26 +128,6 @@ addProjects lmemdocs pId = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pm
           addProjects (tail lmemdocs) pId
     else trace "addProjects: label was not high enough" $ return ()
 
--- Modifies the database by adding the second argument tid to each user document's "tasks" field
-addTasks :: [LabeledHsonDocument] -> ObjectId -> DBAction ()
-addTasks lmemdocs tid = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
-  if (length lmemdocs == 0)
-  then return ()
-  else do
-    mltask <- findOne $ select ["_id" -: tid] "tasks"
-    let ltask = fromJust mltask
-    -- make sure we're not inserting a task with higher sensitivity than that of the user
-    if (labelOf (head lmemdocs)) `canFlowTo` (labelOf ltask)
-    then do
-      memDocs <- mapM (liftLIO . unlabel) lmemdocs
-      let doc = head memDocs
-      let curTasks = "tasks" `at` doc
-      let newTasks = tid:curTasks
-      let newDoc = merge ["tasks" -: newTasks] doc
-      saveP pmpriv "users" newDoc
-      addTasks (tail lmemdocs) tid
-    else trace "addTasks: label was not high enough" $ return ()
-
 -- Modifies the database by adding the second argument notif to each user document's "notif" field 
 -- ldoc is the labeled document for the source of the notification
 addNotifs :: [LabeledHsonDocument] -> String -> LabeledHsonDocument -> DBAction ()
@@ -156,18 +135,16 @@ addNotifs lmemdocs notif ldoc = liftLIO $ withPolicyModule $ \(TaskPolicyModuleT
   if (length lmemdocs == 0)
   then trace "added Notifs success" $ return ()
   else do
-    --mluser <- findOne $ select ["name" -: tid] "users"
-    --let luser = fromJust mluser
-    if (labelOf (head lmemdocs)) `canFlowTo` (labelOf ldoc)
-    then do
-      memDocs <- mapM (liftLIO . unlabel) lmemdocs
-      let doc = head memDocs
-      let curNotifs = "notifs" `at` doc
-      let newNotifs = trace ("current notifs: " ++ show curNotifs) $ notif:curNotifs
-      let newDoc = trace ("new notifs: " ++ show newNotifs) $ merge ["notifs" -: newNotifs] doc
-      trace ("new document: " ++ show newDoc) $ saveP pmpriv "users" newDoc
-      addNotifs (tail lmemdocs) notif ldoc
-    else trace "addNotifs: label was not high enough" $ return ()
+  --mluser <- findOne $ select ["name" -: tid] "users"
+  --let luser = fromJust mluser
+    memDocs <- mapM (liftLIO . unlabel) lmemdocs
+    let doc = head memDocs
+    let curNotifs = "notifs" `at` doc
+    let newNotifs = trace ("current notifs: " ++ show curNotifs) $ notif:curNotifs
+    let newDoc = trace ("new notifs: " ++ show newNotifs) $ merge ["notifs" -: newNotifs] doc
+    trace ("new document: " ++ show newDoc) $ saveP pmpriv "users" newDoc
+    addNotifs (tail lmemdocs) notif ldoc
+    
 
 instance Groups TaskPolicyModule where
   groupsInstanceEndorse = TaskPolicyModuleTCB (PrivTCB $ toCNF True)
