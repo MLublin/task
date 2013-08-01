@@ -8,8 +8,11 @@ module Task.Policy (
    , insertTask
    , insertProj
    , updateProject
+   , findWhereWithGroupP
+   , powerUnlabel
   ) where
 
+import Prelude hiding (lookup)
 import Data.Typeable
 import Debug.Trace
 import LIO
@@ -26,6 +29,7 @@ import qualified Data.ByteString.Char8 as S8
 import Hails.Database.Structured
 import LIO.TCB
 import Task.Models
+import Control.Monad
 
 data TaskPolicyModule = TaskPolicyModuleTCB DCPriv deriving Typeable
 
@@ -155,12 +159,12 @@ instance Groups TaskPolicyModule where
   groupsInstanceEndorse = TaskPolicyModuleTCB (PrivTCB $ toCNF True)
   groups _ p pgroup = trace (show pgroup) $ case () of
     _ | "#projId=" `S8.isPrefixOf` group -> do
-      let _id = read (S8.unpack $ S8.drop 7 group) :: ObjectId
+      let _id = read (S8.unpack $ S8.drop 8 group) :: ObjectId
       mproj <- findOne $ select ["_id" -: (_id :: ObjectId)]  "projects" 
       case mproj of
         Nothing -> return [pgroup]
         Just lproj -> do
-	  proj <- liftLIO $ unlabel lproj
+	  proj <- liftLIO $ unlabelP p lproj
 	  return . map toPrincipal $ "members" `at` proj
     _ -> return [pgroup]
     where group = principalName pgroup
@@ -172,12 +176,145 @@ insertTask task = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> 
   tid  <- trace ("inserting " ++ show task) $ insertRecordP pmpriv task 
   return tid
 
-insertProj :: Project -> DBAction ObjectId
+insertProj :: HsonDocument -> DBAction ObjectId
 insertProj proj = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
-  pid <- liftLIO $ withTaskPolicyModule $ insertRecordP pmpriv proj
-  return pid
+  pid <- liftLIO $ withTaskPolicyModule $ trace ("inserting" ++ show proj) $  insertP pmpriv "projects" proj
+  trace "insert success" $ return pid
 
 --resetLabel :: UserName -> DBAction ()
 --resetLabel user = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
 --  liftLIO $ setLabelP pmpriv (("True" :: String) %% T.unpack user)
 
+findWhereWithGroupP :: (DCRecord a, MonadDB m) => DCPriv -> Query -> m (Maybe a)
+findWhereWithGroupP p query  = liftDB $ do
+  mldoc <- findOneP p query
+  c <- liftLIO $ getClearance
+  case mldoc of
+    Just ldoc' -> do ldoc <- labelRewrite (undefined :: TaskPolicyModule) ldoc'
+                     if canFlowToP p (labelOf ldoc) c 
+                       then fromDocument `liftM` (liftLIO $ unlabelP p ldoc)
+                       else return Nothing
+    _ -> return Nothing
+
+instance DCRecord Project where
+  fromDocument doc = do
+    let pid = trace "pid lookup" $ lookupObjId "_id" doc
+    title <- trace "title lookup" $ lookup "title" doc
+    members <- trace "members lookup" $ lookup "members" doc
+    completed <- trace "completed lookup" $ lookup "completed" doc
+    startTime <- trace "startTime lookup" $ lookup "startTime" doc
+    endTime <- trace "endTime lookup" $ lookup "endTime" doc
+    leaders <- trace "leaders lookup" $ lookup "leaders" doc
+    tasks <- trace "tasks lookup" $ lookup "tasks" doc
+    desc <- trace "desc lookup" $ lookup "desc" doc
+    trace "returning project" $ return Project { projectId = pid
+                   , projectTitle = title
+                   , projectMembers = members
+                   , projectCompleted = read completed 
+                   , projectStartTime = startTime
+                   , projectEndTime = endTime
+                   , projectLeaders = leaders
+                   , projectTasks = tasks
+                   , projectDesc = desc }
+
+  toDocument t =
+    (maybe [] (\tid -> ["_id"  -: tid]) $ projectId t) ++
+    [ "title" -: projectTitle t
+    , "members" -: (projectMembers t :: [UserName])
+    , "completed" -: show (projectCompleted t)
+    , "startTime" -: projectStartTime t
+    , "endTime" -: projectEndTime t
+    , "leaders" -: projectLeaders t
+    , "tasks" -: projectTasks t 
+    , "desc" -: projectDesc t ]
+
+  findWhereP = findWhereWithGroupP
+  
+  recordCollection _ = "projects"
+
+
+instance DCRecord User where
+  fromDocument doc = trace "fromDoc user" $ do
+    let uid = lookupObjIdh "_id" doc
+    name <- lookup "name" doc
+    notifs <- lookup "notifs" doc
+    let projects = at "projects" doc
+    let invites = at "invites" doc
+    trace "returning user" $ return User { userId = uid
+                , userName = name
+                , userNotifs = notifs
+                , userInvites = invites
+                , userProjects = projects }
+
+  toDocument u = trace "toDoc user" $
+    [ "_id"  -: userId u
+    , "name" -: userName u
+    , "notifs" -: userNotifs u
+    , "invites" -: userInvites u
+    , "projects" -: userProjects u]
+
+
+  recordCollection _ = "tasks"
+
+
+instance DCRecord Task where
+  fromDocument doc = trace "fromDoc task" $ do
+    let tid = lookupObjIdh "_id" doc
+    name <- lookup "name" doc
+    members <- lookup "members" doc
+    completed <- trace "completed" $ lookup "completed" doc
+    priority <- trace "priority" $ lookup "priority" doc
+    project <- lookup "project" doc
+    return Task { taskId = tid
+                , taskName = name
+                , taskMembers = members
+                , taskCompleted = read completed
+                , taskPriority = priority
+                , taskProject = read project }
+
+  toDocument t =
+    (maybe [] (\tid -> ["_id"  -: tid]) $ taskId t) ++
+    [ "name" -: taskName t
+    , "members" -: (taskMembers t :: [UserName])
+    , "completed" -: show (taskCompleted t)
+    , "priority" -: taskPriority t
+    , "project" -: taskProject t]
+
+  findWhereP = findWhereWithGroupP
+
+  recordCollection _ = "tasks"
+
+
+instance DCRecord Comment where
+  fromDocument doc = do
+    let cid = lookupObjId "_id" doc
+    author <- lookup "author" doc
+    text <- lookup "text" doc -- body text
+    proj <- lookupObjId "proj" doc -- associated proj
+    let parent = lookupObjId "parent" doc -- the comment it's in reply to
+    return Comment { commentId = cid
+                   , commentAuthor = author
+                   , commentAssocProj = proj
+                   , commentText = text
+                   , commentInReplyTo = parent }
+
+  toDocument c =
+    let mparent = commentInReplyTo c
+        parent = if isJust mparent
+                   then [ "parent" -: fromJust mparent ]
+                   else []
+        mid = commentId c
+        id = if isJust mparent
+               then [ "_id" -: fromJust mid ]
+               else []
+    in id ++
+       [ "author" -: commentAuthor c
+       , "post" -: commentAssocProj c
+       , "text" -: commentText c ]
+       ++ parent
+
+  recordCollection _ = "comments"
+
+--powerUnlabel :: DCLabeled l a -> DC
+powerUnlabel a = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
+  liftLIO $ unlabelP pmpriv a

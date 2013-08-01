@@ -105,7 +105,7 @@ server = mkRouter $ do
     case mpdoc of
       Nothing -> trace "104" $ respond notFound 
       Just pdoc -> trace "105" $ do
-        proj <- trace "106" $ (liftLIO $ trace "unlabeling" $ unlabel pdoc) >>= (trace "fromdocumenting" $ fromDocument)
+        proj <- trace "106" $ (liftLIO $ trace "unlabeling" $ powerUnlabel pdoc) >>= (trace "fromdocumenting" $ fromDocument)
         if not $ user `elem` (projectMembers proj)
           then respond $ trace "108" $ redirectTo "/"
           else do
@@ -114,7 +114,7 @@ server = mkRouter $ do
             let tids = trace "112" $ projectTasks proj
             mtasks <- trace "113" $ liftLIO $ withTaskPolicyModule $ mapM (\t -> findOne $ select ["_id" -: t] "tasks") tids  -- [Maybe Labeled Doc]
             let ltaskdocs = trace "114" $ (map fromJust mtasks :: [LabeledHsonDocument])
-            taskdocs <- trace "115" $ (mapM (\ldoc -> liftLIO $ unlabel ldoc) ltaskdocs)
+            taskdocs <- trace "115" $ (mapM (\ldoc -> liftLIO $ powerUnlabel ldoc) ltaskdocs)
             tasks <- trace "116" $ mapM fromDocument (taskdocs :: [Document]) -- [Task]
             matype <- trace "line 117 " $ requestHeader "accept"
             case matype of
@@ -133,8 +133,8 @@ server = mkRouter $ do
                         , "tasks" -: ([] :: [ObjectId])
                         , "completed" -: ("False" :: String)]
                         pdoc
-    proj <- fromDocument project 
-    pid <- liftLIO $ withTaskPolicyModule $ insertProj proj
+    --proj <- fromDocument project 
+    pid <- liftLIO $ withTaskPolicyModule $ insertProj project
     alldocs <- liftLIO $ trace "135" $ withTaskPolicyModule $ findAllL $ select [] "users"
     memDocs <- trace "136" $ liftLIO $ filterM (\ldoc -> do
                                     doc <- liftLIO $ unlabel ldoc 

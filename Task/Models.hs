@@ -2,7 +2,10 @@
 module Task.Models ( Task(..)
                    , User(..)
                    , Comment(..)
-                   , Project(..) ) where
+                   , Project(..) 
+		   , lookupObjIdh
+		   , lookupObjId ) 
+		   where
 
 import Prelude hiding (lookup)
 import qualified Data.ByteString.Lazy as L
@@ -28,8 +31,6 @@ import Data.Maybe
 import Data.Time.Clock
 import Data.Typeable
 
---import Task.Policy
-
 
 data Task = Task {
   taskId :: Maybe ObjectId,
@@ -50,32 +51,6 @@ instance ToJSON Task where
            , "project"   .= show proj
            ]
 
-instance DCRecord Task where
-  fromDocument doc = trace "fromDoc task" $ do
-    let tid = lookupObjIdh "_id" doc
-    name <- lookup "name" doc
-    members <- lookup "members" doc
-    completed <- lookup "completed" doc
-    priority <- lookup "priority" doc
-    project <- lookup "project" doc
-    return Task { taskId = tid
-                , taskName = name
-                , taskMembers = members
-                , taskCompleted = read completed
-                , taskPriority = priority
-                , taskProject = read project }
-
-  toDocument t =
-    (maybe [] (\tid -> ["_id"  -: tid]) $ taskId t) ++
-    [ "name" -: taskName t
-    , "members" -: (taskMembers t :: [UserName])
-    , "completed" -: show (taskCompleted t)
-    , "priority" -: taskPriority t
-    , "project" -: taskProject t]
-
-  recordCollection _ = "tasks"
-
-
 data User = User {
   userId :: Maybe ObjectId,
   userName :: UserName,
@@ -93,29 +68,6 @@ instance ToJSON User where
            , "projects"  .= show p
            ]
 
-instance DCRecord User where
-  fromDocument doc = trace "fromDoc user" $ do
-    let uid = lookupObjIdh "_id" doc
-    name <- lookup "name" doc
-    notifs <- lookup "notifs" doc
-    let projects = at "projects" doc
-    let invites = at "invites" doc
-    trace "returning user" $ return User { userId = uid
-                , userName = name
-                , userNotifs = notifs
-                , userInvites = invites
-                , userProjects = projects }
-
-  toDocument u = trace "toDoc user" $
-    [ "_id"  -: userId u
-    , "name" -: userName u
-    , "notifs" -: userNotifs u
-    , "invites" -: userInvites u
-    , "projects" -: userProjects u]
-
-  recordCollection _ = "tasks"
-
-
 data Project = Project {
   projectId :: Maybe ObjectId,
   projectTitle :: String,
@@ -127,41 +79,6 @@ data Project = Project {
   projectTasks :: [ObjectId],
   projectDesc :: String
 } deriving (Show, Eq, Typeable)
-
-instance DCRecord Project where
-  fromDocument doc = do
-    let pid = trace "pid lookup" $ lookupObjIdh "_id" doc
-    title <- trace "title lookup" $ lookup "title" doc
-    members <- trace "members lookup" $ lookup "members" doc
-    completed <- trace "completed lookup" $ lookup "completed" doc
-    startTime <- trace "startTime lookup" $ lookup "startTime" doc
-    endTime <- trace "endTime lookup" $ lookup "endTime" doc
-    leaders <- trace "leaders lookup" $ lookup "leaders" doc
-    tasks <- trace "tasks lookup" $ lookup "tasks" doc
-    desc <- trace "desc lookup" $ lookup "desc" doc
-    trace "returning project" $ return Project { projectId = pid
-                   , projectTitle = title
-                   , projectMembers = members
-                   , projectCompleted = read completed 
-                   , projectStartTime = startTime
-                   , projectEndTime = endTime
-                   , projectLeaders = leaders
-                   , projectTasks = tasks
-                   , projectDesc = desc }
-
-  toDocument t =
-    (maybe [] (\tid -> ["_id"  -: tid]) $ projectId t) ++
-    [ "title" -: projectTitle t
-    , "members" -: (projectMembers t :: [UserName])
-    , "completed" -: show (projectCompleted t)
-    , "startTime" -: projectStartTime t
-    , "endTime" -: projectEndTime t
-    , "leaders" -: projectLeaders t
-    , "tasks" -: projectTasks t 
-    , "desc" -: projectDesc t ]
-
-  recordCollection _ = "projects"
-
 
 -- Comments ----
 
@@ -183,37 +100,6 @@ instance ToJSON Comment where
                            Just p -> show p
                            _ -> ""
            ]
-
-instance DCRecord Comment where
-  fromDocument doc = do
-    let cid = lookupObjId "_id" doc
-    author <- lookup "author" doc
-    text <- lookup "text" doc -- body text
-    proj <- lookupObjId "proj" doc -- associated proj
-    let parent = lookupObjId "parent" doc -- the comment it's in reply to
-    return Comment { commentId = cid
-                   , commentAuthor = author
-                   , commentAssocProj = proj
-                   , commentText = text
-                   , commentInReplyTo = parent }
-
-  toDocument c =
-    let mparent = commentInReplyTo c
-        parent = if isJust mparent
-                   then [ "parent" -: fromJust mparent ]
-                   else []
-        mid = commentId c
-        id = if isJust mparent
-               then [ "_id" -: fromJust mid ]
-               else []
-    in id ++
-       [ "author" -: commentAuthor c
-       , "post" -: commentAssocProj c
-       , "text" -: commentText c ]
-       ++ parent
-
-  recordCollection _ = "comments"
-
 lookupObjId :: Monad m => FieldName -> HsonDocument -> m ObjectId
 lookupObjId n d = case lookup n d of
     Just i -> return (i :: ObjectId)
