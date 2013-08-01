@@ -150,8 +150,8 @@ instance DCRecord Project where
                    , projectDesc = desc }
 
   toDocument t =
-    [ "_id"  -: projectId t
-    , "title" -: projectTitle t
+    (maybe [] (\tid -> ["_id"  -: tid]) $ projectId t) ++
+    [ "title" -: projectTitle t
     , "members" -: (projectMembers t :: [UserName])
     , "completed" -: projectCompleted t
     , "startTime" -: projectStartTime t

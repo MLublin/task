@@ -44,17 +44,17 @@ server = mkRouter $ do
 -- Projects ----
 
   -- The Home Page displays the user's projects and notifications, and allows the user to create a new project
-  get "/" $ withUserOrDoAuth $ \user -> do
+  get "/" $ trace "47 start" $ withUserOrDoAuth $ trace "47 mid" $ \user -> trace "47 end" $ do
     musr <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
     case musr of
       Nothing ->  do     -- New user
-        respond $ respondHtml "Projects" $ trace "creating new user" $ newUser user
+        trace "51" $ respond $ respondHtml "Projects" $ trace "creating new user" $ newUser user
       Just usr -> do     -- Existing user
         u <- (liftLIO $ unlabel usr) >>= fromDocument 
-        let pids = userProjects u
-        mprojects <- liftLIO $ withTaskPolicyModule $ mapM (findBy "projects" "_id") pids 
-        let projects = map fromJust mprojects
-        respond $ respondHtml "Projects" $ displayHomePage user projects (userNotifs u)
+        let pids = trace "54" $ userProjects u
+        mprojects <- trace "55" $ liftLIO $ withTaskPolicyModule $ mapM (findBy "projects" "_id") pids 
+        let projects = trace "56" $ map fromJust mprojects
+        trace "57" $ respond $ respondHtml "Projects" $ displayHomePage user projects (userNotifs u)
  
   -- Display the New Project page
   get "/projects/new" $  withUserOrDoAuth $ \user -> do
@@ -96,27 +96,30 @@ server = mkRouter $ do
     respond $ redirectTo ("/projects/" ++ show pid)
     
   -- Display the Project Page  
-  get "/projects/:pid" $ withUserOrDoAuth $ \user -> do
+  get "/projects/:pid" $ trace "99" $ withUserOrDoAuth $ \user -> do
+    liftLIO $ withTaskPolicyModule $ resetLabel user
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
-    mpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
+    mpdoc <- trace "102" $ liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
     case mpdoc of
-      Nothing -> respond notFound 
-      Just pdoc -> do
-        proj <- (liftLIO $ unlabel pdoc) >>= fromDocument
+      Nothing -> trace "104" $ respond notFound 
+      Just pdoc -> trace "105" $ do
+        proj <- trace "106" $ (liftLIO $ trace "unlabeling" $ unlabel pdoc) >>= (trace "fromdocumenting" $ fromDocument)
         if not $ user `elem` (projectMembers proj)
-          then respond $ redirectTo "/"
+          then respond $ trace "108" $ redirectTo "/"
           else do
-            mudoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
-	    u <- (liftLIO $ unlabel $ trace "fromJust 111 display project page" $ fromJust mudoc) >>= fromDocument
-            let tids = projectTasks proj
-            mtasks <- liftLIO $ withTaskPolicyModule $ mapM (\t -> findWhere $ select ["_id" -: t] "tasks") tids 
-            let tasks = trace ("mtasks: " ++ show mtasks) $ map fromJust mtasks
-            matype <- trace "line 115 " $ requestHeader "accept"
+            mudoc <- trace "110" $ liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
+	    u <- trace "111" $ (liftLIO $ unlabel $ trace "fromJust 111 display project page" $ fromJust mudoc) >>= fromDocument
+            let tids = trace "112" $ projectTasks proj
+            mtasks <- trace "113" $ liftLIO $ withTaskPolicyModule $ mapM (\t -> findOne $ select ["_id" -: t] "tasks") tids  -- [Maybe Labeled Doc]
+            let ltaskdocs = trace "114" $ (map fromJust mtasks :: [LabeledHsonDocument])
+            taskdocs <- trace "115" $ (mapM (\ldoc -> liftLIO $ unlabel ldoc) ltaskdocs)
+            tasks <- trace "116" $ mapM fromDocument (taskdocs :: [Document]) -- [Task]
+            matype <- trace "line 117 " $ requestHeader "accept"
             case matype of
               Just atype | "application/json" `S8.isInfixOf` atype ->
                  return $ ok "application/json" (encode $ toJSON tasks)
-              _ -> return $ respondHtml "Tasks" $ displayProjectPage u tasks proj
+              _ -> return $ trace "121" $ respondHtml "Tasks" $ displayProjectPage u tasks proj
 
   -- Process the information for a new project
   post "/projects" $ do
@@ -127,22 +130,23 @@ server = mkRouter $ do
     let project = merge [ "members" -: (members :: [UserName])
                         , "leaders" -: (leaders :: [String])
                         , "tasks" -: ([] :: [ObjectId])]
-                        pdoc 
-    pid <- liftLIO $ withTaskPolicyModule $ insert "projects" project
-    alldocs <- liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
-    memDocs <- liftLIO $ filterM (\ldoc -> do
+                        pdoc
+    proj <- fromDocument project 
+    pid <- liftLIO $ withTaskPolicyModule $ insertProj proj
+    alldocs <- liftLIO $ trace "135" $ withTaskPolicyModule $ findAllL $ select [] "users"
+    memDocs <- trace "136" $ liftLIO $ filterM (\ldoc -> do
                                     doc <- liftLIO $ unlabel ldoc 
                                     return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
                                  alldocs
-    (Just lpdoc) <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
+    (Just lpdoc) <- trace "140" $ liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
     liftLIO $ withTaskPolicyModule $ addNotifs memDocs ("You were added to a new project: " ++ ("title" `at` project) ++ " by " ++ (T.unpack $ fromJust user)) lpdoc
-    alldocs' <- liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
-    memDocs' <- liftLIO $ filterM (\ldoc -> do
+    alldocs' <- trace "addNotifs succeeded" $ liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
+    memDocs' <- trace "143" $ liftLIO $ filterM (\ldoc -> do
                                     doc <- liftLIO $ unlabel ldoc 
                                     return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
                                  alldocs'
-    liftLIO $ withTaskPolicyModule $ addProjects memDocs' pid
-    respond $ redirectTo ("/projects/" ++ show pid)
+    trace "147" $ liftLIO $ withTaskPolicyModule $ addProjects memDocs' pid
+    trace "148" $ respond $ redirectTo ("/projects/" ++ show pid)
 
   -- Display the Edit Project page
   get "/projects/:pid/edit" $ withUserOrDoAuth $ \user -> do

@@ -6,6 +6,8 @@ module Task.Policy (
    , addProjects
    , addNotifs
    , insertTask
+   , insertProj
+   , resetLabel
   ) where
 
 import Data.Typeable
@@ -72,11 +74,11 @@ instance PolicyModule TaskPolicyModule where
           secrecy ==> this
           integrity ==> unrestricted
         document $ \doc -> do
-          --let members = map T.unpack ("members" `at` doc :: [UserName])
-          --readers ==> List.foldl' (\/) this members
-          --writers ==> List.foldl' (\/) this members
-          readers ==> unrestricted
-          writers ==> unrestricted
+          let members = map T.unpack ("members" `at` doc :: [UserName])
+          readers ==> List.foldl' (\/) this members
+          writers ==> List.foldl' (\/) this members
+          --readers ==> unrestricted
+          --writers ==> unrestricted
       collection "comments" $ do
         access $ do
           readers ==> unrestricted
@@ -112,21 +114,17 @@ addProjects lmemdocs pId = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pm
   if (length lmemdocs) == 0
   then trace "97" $ return ()
   else do 
-    -- make sure we're not inserting a project with higher sensitivity than that of the user
-    if (labelOf (head lmemdocs)) `canFlowTo` (labelOf lproj)
-    then trace "94" $ do
-      memDocs <- mapM (liftLIO . unlabel) lmemdocs
-      trace ("memDocs: " ++ show memDocs) $ do
-        let ldoc = head lmemdocs
-        let curProjects = trace "100" $ "projects" `at` (head memDocs)
-        if (pId `elem` curProjects) then trace "101" $ addProjects (tail lmemdocs) pId
-        else trace "102" $ do
-          let newProjects = pId:curProjects
-          doc <- liftLIO $ unlabel ldoc
-          let newDoc = merge ["projects" -: newProjects] doc
-          saveP pmpriv "users" newDoc
-          addProjects (tail lmemdocs) pId
-    else trace "addProjects: label was not high enough" $ return ()
+    memDocs <- mapM (liftLIO . unlabel) lmemdocs
+    trace ("memDocs: " ++ show memDocs) $ do
+      let ldoc = head lmemdocs
+      let curProjects = trace "100" $ "projects" `at` (head memDocs)
+      if (pId `elem` curProjects) then trace "101" $ addProjects (tail lmemdocs) pId
+      else trace "102" $ do
+        let newProjects = pId:curProjects
+        doc <- liftLIO $ unlabel ldoc
+        let newDoc = merge ["projects" -: newProjects] doc
+        saveP pmpriv "users" newDoc
+        addProjects (tail lmemdocs) pId
 
 -- Modifies the database by adding the second argument notif to each user document's "notif" field 
 -- ldoc is the labeled document for the source of the notification
@@ -164,5 +162,15 @@ instance Groups TaskPolicyModule where
 
 insertTask :: Task -> DBAction ObjectId
 insertTask task = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
-   tid  <- trace ("inserting " ++ show task) $ insertRecordP pmpriv task 
-   return tid
+  tid  <- trace ("inserting " ++ show task) $ insertRecordP pmpriv task 
+  return tid
+
+insertProj :: Project -> DBAction ObjectId
+insertProj proj = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
+  pid <- liftLIO $ withTaskPolicyModule $ insertRecordP pmpriv proj
+  return pid
+
+resetLabel :: UserName -> DBAction ()
+resetLabel user = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
+  liftLIO $ setLabelP pmpriv (("True" :: String) %% T.unpack user)
+
