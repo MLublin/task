@@ -69,7 +69,7 @@ instance DCRecord Task where
     (maybe [] (\tid -> ["_id"  -: tid]) $ taskId t) ++
     [ "name" -: taskName t
     , "members" -: (taskMembers t :: [UserName])
-    , "completed" -: taskCompleted t
+    , "completed" -: show (taskCompleted t)
     , "priority" -: taskPriority t
     , "project" -: taskProject t]
 
@@ -130,15 +130,15 @@ data Project = Project {
 
 instance DCRecord Project where
   fromDocument doc = do
-    let pid = lookupObjIdh "_id" doc
-    title <- lookup "title" doc
-    members <- lookup "members" doc
-    completed <- lookup "completed" doc
-    startTime <- lookup "startTime" doc
-    endTime <- lookup "endTime" doc
-    leaders <- lookup "leaders" doc
-    tasks <- lookup "tasks" doc
-    desc <- lookup "desc" doc
+    let pid = trace "pid lookup" $ lookupObjIdh "_id" doc
+    title <- trace "title lookup" $ lookup "title" doc
+    members <- trace "members lookup" $ lookup "members" doc
+    completed <- trace "completed lookup" $ lookup "completed" doc
+    startTime <- trace "startTime lookup" $ lookup "startTime" doc
+    endTime <- trace "endTime lookup" $ lookup "endTime" doc
+    leaders <- trace "leaders lookup" $ lookup "leaders" doc
+    tasks <- trace "tasks lookup" $ lookup "tasks" doc
+    desc <- trace "desc lookup" $ lookup "desc" doc
     trace "returning project" $ return Project { projectId = pid
                    , projectTitle = title
                    , projectMembers = members
@@ -153,7 +153,7 @@ instance DCRecord Project where
     (maybe [] (\tid -> ["_id"  -: tid]) $ projectId t) ++
     [ "title" -: projectTitle t
     , "members" -: (projectMembers t :: [UserName])
-    , "completed" -: projectCompleted t
+    , "completed" -: show (projectCompleted t)
     , "startTime" -: projectStartTime t
     , "endTime" -: projectEndTime t
     , "leaders" -: projectLeaders t

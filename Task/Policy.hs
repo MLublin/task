@@ -7,7 +7,7 @@ module Task.Policy (
    , addNotifs
    , insertTask
    , insertProj
-   , resetLabel
+   , updateProject
   ) where
 
 import Data.Typeable
@@ -74,9 +74,12 @@ instance PolicyModule TaskPolicyModule where
           secrecy ==> this
           integrity ==> unrestricted
         document $ \doc -> do
-          let members = map T.unpack ("members" `at` doc :: [UserName])
-          readers ==> List.foldl' (\/) this members
-          writers ==> List.foldl' (\/) this members
+          let projid = ("#projId=" :: String) ++ (show $ ("_id" `at` doc :: ObjectId)) :: String
+          readers ==> projid \/ this
+          writers ==> projid \/ this
+          --let members = map T.unpack ("members" `at` doc :: [UserName])
+          --readers ==> List.foldl' (\/) this members
+          --writers ==> List.foldl' (\/) this members
           --readers ==> unrestricted
           --writers ==> unrestricted
       collection "comments" $ do
@@ -105,6 +108,10 @@ withTaskPolicyModule act = withPolicyModule (\(_ :: TaskPolicyModule) -> act)
 
 findOneProj pid = do
     return liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
+
+updateProject :: Project -> DBAction ()
+updateProject proj = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
+  saveRecordP pmpriv proj
 
 -- Modifies the database by adding the second argument pId to each user document's "projects" field
 addProjects :: [LabeledHsonDocument] -> ObjectId -> DBAction ()
@@ -170,7 +177,7 @@ insertProj proj = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> 
   pid <- liftLIO $ withTaskPolicyModule $ insertRecordP pmpriv proj
   return pid
 
-resetLabel :: UserName -> DBAction ()
-resetLabel user = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
-  liftLIO $ setLabelP pmpriv (("True" :: String) %% T.unpack user)
+--resetLabel :: UserName -> DBAction ()
+--resetLabel user = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
+--  liftLIO $ setLabelP pmpriv (("True" :: String) %% T.unpack user)
 

@@ -52,8 +52,9 @@ server = mkRouter $ do
       Just usr -> do     -- Existing user
         u <- (liftLIO $ unlabel usr) >>= fromDocument 
         let pids = trace "54" $ userProjects u
-        mprojects <- trace "55" $ liftLIO $ withTaskPolicyModule $ mapM (findBy "projects" "_id") pids 
-        let projects = trace "56" $ map fromJust mprojects
+        clearance <- liftLIO $ getClearance
+        mprojects <- trace (show clearance) $ liftLIO $ withTaskPolicyModule $ mapM (findBy "projects" "_id") pids 
+        let projects = trace (show mprojects) $ map fromJust mprojects
         trace "57" $ respond $ respondHtml "Projects" $ displayHomePage user projects (userNotifs u)
  
   -- Display the New Project page
@@ -97,7 +98,7 @@ server = mkRouter $ do
     
   -- Display the Project Page  
   get "/projects/:pid" $ trace "99" $ withUserOrDoAuth $ \user -> do
-    liftLIO $ withTaskPolicyModule $ resetLabel user
+    --liftLIO $ withTaskPolicyModule $ resetLabel user
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
     mpdoc <- trace "102" $ liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
@@ -129,7 +130,8 @@ server = mkRouter $ do
     let leaders = ("leaders" `at` pdoc)
     let project = merge [ "members" -: (members :: [UserName])
                         , "leaders" -: (leaders :: [String])
-                        , "tasks" -: ([] :: [ObjectId])]
+                        , "tasks" -: ([] :: [ObjectId])
+                        , "completed" -: ("False" :: String)]
                         pdoc
     proj <- fromDocument project 
     pid <- liftLIO $ withTaskPolicyModule $ insertProj proj
@@ -272,7 +274,8 @@ server = mkRouter $ do
     --let unlabeledmemDocs = filter (\u -> ("name" `at` u) `elem` members) alldocs
     (Just ltdoc) <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: tid] "tasks"
     liftLIO $ withTaskPolicyModule $ trace "264" $ do
-      save "projects" newDoc
+      proj <- fromDocument newDoc
+      updateProject proj
       liftLIO $ trace "addTasks successful" $ withTaskPolicyModule $ addNotifs memDocs (("You were assigned a task: " ++ ("name" `at` task) ++ " in the project: " ++ ("title" `at` pdoc)) :: String) ltdoc
     respond $ redirectTo ("/projects/" ++ show pid)   
 
