@@ -77,7 +77,7 @@ server = mkRouter $ do
                         , "_id" -: pid
                         , "tasks" -: (("tasks" `at` oldproj) :: [ObjectId]) ]
                         pdoc 
-    liftLIO $ withTaskPolicyModule $ save "projects" project
+    liftLIO $ withTaskPolicyModule $ updateDB project "projects"
     alldocs <- liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
     memDocs <- liftLIO $ filterM (\ldoc -> do
                                     doc <- liftLIO $ powerUnlabel ldoc 
@@ -93,7 +93,7 @@ server = mkRouter $ do
       let projs = "projects" `at` memdoc
       let newprojs = filter (\p -> p /= pid) projs
       let newdoc = merge ["projects" -: newprojs] memdoc
-      liftLIO$ withTaskPolicyModule $ save "users" memdoc 
+      liftLIO $ withTaskPolicyModule $ updateDB memdoc "users"  
     respond $ redirectTo ("/projects/" ++ show pid)
     
   -- Display the Project Page  
@@ -275,7 +275,7 @@ server = mkRouter $ do
     (Just ltdoc) <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: tid] "tasks"
     liftLIO $ withTaskPolicyModule $ trace "264" $ do
       --proj <- fromDocument newDoc
-      updateProject newDoc
+      updateDB newDoc "projects"
       liftLIO $ trace "addTasks successful" $ withTaskPolicyModule $ addNotifs memDocs (("You were assigned a task: " ++ ("name" `at` task) ++ " in the project: " ++ ("title" `at` pdoc)) :: String) ltdoc
     respond $ redirectTo ("/projects/" ++ show pid)   
 

@@ -1,4 +1,4 @@
-{-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, OverloadedStrings #-}
+{-# LANGUAGE DeriveDataTypeable, ScopedTypeVariables, MultiParamTypeClasses,OverloadedStrings #-}
 
 module Task.Policy (
    TaskPolicyModule
@@ -7,7 +7,7 @@ module Task.Policy (
    , addNotifs
    , insertTask
    , insertProj
-   , updateProject
+   , updateDB
    , findWhereWithGroupP
    , powerUnlabel
   ) where
@@ -113,10 +113,11 @@ withTaskPolicyModule act = withPolicyModule (\(_ :: TaskPolicyModule) -> act)
 findOneProj pid = do
     return liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
 
-updateProject :: HsonDocument -> DBAction ()
-updateProject proj = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> trace "saving" $ do
-  saveP pmpriv "projects" proj
+updateDB :: HsonDocument -> CollectionName -> DBAction ()
+updateDB doc cname = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> trace "saving" $ do
+  saveP pmpriv cname doc
   trace "save success " $ return ()
+
 
 -- Modifies the database by adding the second argument pId to each user document's "projects" field
 addProjects :: [LabeledHsonDocument] -> ObjectId -> DBAction ()
@@ -322,3 +323,37 @@ instance DCRecord Comment where
 --powerUnlabel :: DCLabeled l a -> DC
 powerUnlabel a = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
   liftLIO $ unlabelP pmpriv a
+
+
+instance DCLabeledRecord TaskPolicyModule Project where
+  endorseInstance _ = TaskPolicyModuleTCB (PrivTCB $ toCNF True)
+
+instance DCLabeledRecord TaskPolicyModule Task where
+  endorseInstance _ = TaskPolicyModuleTCB (PrivTCB $ toCNF True)
+
+instance DCLabeledRecord TaskPolicyModule User where
+  endorseInstance _ = TaskPolicyModuleTCB (PrivTCB $ toCNF True)
+
+---- | Insert or save a labeled record using task privileges to
+---- untaint the current label (for the duration of the insert or save).
+--taskInsertOrSaveRecord :: DCRecord a
+--  => (TaskPolicyModule -> a -> DC (Either Failure b))
+--  -> a
+--  -> DC (Either Failure b)
+--taskInsertOrSaveRecord f rec = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
+--  l <- getLabel
+--  withLabel pmpriv (newDC (<>) (integrity l)) $ f policy rec
+
+---- | Insert or save a labeled record using task privileges to
+---- untaint the current label (for the duration of the insert or save)
+---- and record.
+--taskInsertOrSaveLabeledRecord :: DCLabeledRecord a
+--  => (TaskPolicyModule -> DCLabeled a -> DC (Either Failure b))
+--  -> DCLabeled a
+--  ->  DC (Either Failure b)
+--taskInsertOrSaveLabeledRecord f lrec = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
+--  lcur <- getLabel
+--  lrec' <- untaintLabeledP pmpriv (newDC (<>) (integrity . labelOf $ lrec)) lrec
+--  withLabel pmpriv (newDC (<>) (integrity lcur)) $ f policy lrec'
+
+
