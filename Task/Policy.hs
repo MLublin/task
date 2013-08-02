@@ -65,7 +65,7 @@ instance PolicyModule TaskPolicyModule where
           --let members = "members" `at` pdoc
           --readers ==> List.foldl' (\/) this members
           --writers ==> List.foldl' (\/) this members 
-          let projid = ("#projId=" :: String) ++ (show $ ("project" `at` doc :: ObjectId)) :: String
+          let projid = ("#projId=" :: String) ++ (show $ (read ("project" `at` doc) :: ObjectId)) :: String
           readers ==> projid \/ this
           writers ==> projid \/ this
         --    readers ==> unrestricted
@@ -113,9 +113,10 @@ withTaskPolicyModule act = withPolicyModule (\(_ :: TaskPolicyModule) -> act)
 findOneProj pid = do
     return liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
 
-updateProject :: Project -> DBAction ()
-updateProject proj = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
-  saveRecordP pmpriv proj
+updateProject :: HsonDocument -> DBAction ()
+updateProject proj = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> trace "saving" $ do
+  saveP pmpriv "projects" proj
+  trace "save success " $ return ()
 
 -- Modifies the database by adding the second argument pId to each user document's "projects" field
 addProjects :: [LabeledHsonDocument] -> ObjectId -> DBAction ()
@@ -157,7 +158,7 @@ addNotifs lmemdocs notif ldoc = liftLIO $ withPolicyModule $ \(TaskPolicyModuleT
 
 instance Groups TaskPolicyModule where
   groupsInstanceEndorse = TaskPolicyModuleTCB (PrivTCB $ toCNF True)
-  groups _ p pgroup = trace (show pgroup) $ case () of
+  groups _ p pgroup = trace ("GROUPS FUNCTION " ++ show pgroup) $ case () of
     _ | "#projId=" `S8.isPrefixOf` group -> do
       let _id = read (S8.unpack $ S8.drop 8 group) :: ObjectId
       mproj <- findOne $ select ["_id" -: (_id :: ObjectId)]  "projects" 
@@ -165,20 +166,23 @@ instance Groups TaskPolicyModule where
         Nothing -> return [pgroup]
         Just lproj -> do
 	  proj <- liftLIO $ unlabelP p lproj
-	  return . map toPrincipal $ "members" `at` proj
+	  trace (show $  map toPrincipal $ "members" `at` proj) $ do
+	    return . map toPrincipal $ "members" `at` proj
     _ -> return [pgroup]
     where group = principalName pgroup
           toPrincipal = principal . T.unpack  
-          reviewPaperId = "#reviewPaperId="
 
-insertTask :: Task -> DBAction ObjectId
-insertTask task = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
-  tid  <- trace ("inserting " ++ show task) $ insertRecordP pmpriv task 
-  return tid
+insertTask :: HsonDocument -> DBAction ObjectId
+insertTask taskdoc = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
+  id <- genObjectId
+  let newdoc = merge ["_id" -: id] taskdoc
+  tid  <- trace ("inserting " ++ show newdoc) $ insertP pmpriv "tasks" newdoc
+  trace "insert success" $ return tid
 
 insertProj :: HsonDocument -> DBAction ObjectId
 insertProj proj = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> do
-  pid <- liftLIO $ withTaskPolicyModule $ trace ("inserting" ++ show proj) $  insertP pmpriv "projects" proj
+  id <- genObjectId
+  pid <- liftLIO $ withTaskPolicyModule $ trace ("inserting" ++ show proj) $  insertP pmpriv "projects" $ merge ["_id" -: id] proj
   trace "insert success" $ return pid
 
 --resetLabel :: UserName -> DBAction ()

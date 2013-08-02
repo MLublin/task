@@ -50,7 +50,7 @@ server = mkRouter $ do
       Nothing ->  do     -- New user
         trace "51" $ respond $ respondHtml "Projects" $ trace "creating new user" $ newUser user
       Just usr -> do     -- Existing user
-        u <- (liftLIO $ unlabel usr) >>= fromDocument 
+        u <- (liftLIO $ powerUnlabel usr) >>= fromDocument 
         let pids = trace "54" $ userProjects u
         clearance <- liftLIO $ getClearance
         mprojects <- trace (show clearance) $ liftLIO $ withTaskPolicyModule $ mapM (findBy "projects" "_id") pids 
@@ -66,10 +66,10 @@ server = mkRouter $ do
 
   -- Process the information for an edited project
   post "/projects/edit" $ do
-    pdoc <- include ["_id", "title", "desc", "members", "completed", "startTime", "endTime", "leaders"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
+    pdoc <- include ["_id", "title", "desc", "members", "completed", "startTime", "endTime", "leaders"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. powerUnlabel))
     let pid = read (drop 5 $ at "_id" pdoc) :: ObjectId
     mloldproj <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
-    oldproj <- liftLIO $ unlabel $ fromJust mloldproj
+    oldproj <- liftLIO $ powerUnlabel $ fromJust mloldproj
     let members = ("members" `at` pdoc)
     let leaders = ("leaders" `at` pdoc)
     let project = merge [ "members" -: (members :: [String])
@@ -80,7 +80,7 @@ server = mkRouter $ do
     liftLIO $ withTaskPolicyModule $ save "projects" project
     alldocs <- liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
     memDocs <- liftLIO $ filterM (\ldoc -> do
-                                    doc <- liftLIO $ unlabel ldoc 
+                                    doc <- liftLIO $ powerUnlabel ldoc 
                                     return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
                                  alldocs
     liftLIO $ withTaskPolicyModule $ addProjects memDocs pid
@@ -89,7 +89,7 @@ server = mkRouter $ do
     let removedMembers = filter (\member -> not $ member `elem` members) oldMembers
     forM_ removedMembers $ \mem -> do 
       mlmemdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: mem] "users"
-      memdoc <- liftLIO $ unlabel $ fromJust mlmemdoc
+      memdoc <- liftLIO $ powerUnlabel $ fromJust mlmemdoc
       let projs = "projects" `at` memdoc
       let newprojs = filter (\p -> p /= pid) projs
       let newdoc = merge ["projects" -: newprojs] memdoc
@@ -105,12 +105,12 @@ server = mkRouter $ do
     case mpdoc of
       Nothing -> trace "104" $ respond notFound 
       Just pdoc -> trace "105" $ do
-        proj <- trace "106" $ (liftLIO $ trace "unlabeling" $ powerUnlabel pdoc) >>= (trace "fromdocumenting" $ fromDocument)
+        proj <- trace "106" $ (liftLIO $ trace "powerUnlabeling" $ powerUnlabel pdoc) >>= (trace "fromdocumenting" $ fromDocument)
         if not $ user `elem` (projectMembers proj)
           then respond $ trace "108" $ redirectTo "/"
           else do
             mudoc <- trace "110" $ liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
-	    u <- trace "111" $ (liftLIO $ unlabel $ trace "fromJust 111 display project page" $ fromJust mudoc) >>= fromDocument
+	    u <- trace "111" $ (liftLIO $ powerUnlabel $ trace "fromJust 111 display project page" $ fromJust mudoc) >>= fromDocument
             let tids = trace "112" $ projectTasks proj
             mtasks <- trace "113" $ liftLIO $ withTaskPolicyModule $ mapM (\t -> findOne $ select ["_id" -: t] "tasks") tids  -- [Maybe Labeled Doc]
             let ltaskdocs = trace "114" $ (map fromJust mtasks :: [LabeledHsonDocument])
@@ -125,7 +125,7 @@ server = mkRouter $ do
   -- Process the information for a new project
   post "/projects" $ do
     user <- getHailsUser
-    pdoc <- include ["title", "desc", "members", "completed", "startTime", "endTime", "leaders", "tasks"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
+    pdoc <- include ["title", "desc", "members", "completed", "startTime", "endTime", "leaders", "tasks"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. powerUnlabel))
     let members = ("members" `at` pdoc) :: [UserName]
     let leaders = ("leaders" `at` pdoc)
     let project = merge [ "members" -: (members :: [UserName])
@@ -137,14 +137,14 @@ server = mkRouter $ do
     pid <- liftLIO $ withTaskPolicyModule $ insertProj project
     alldocs <- liftLIO $ trace "135" $ withTaskPolicyModule $ findAllL $ select [] "users"
     memDocs <- trace "136" $ liftLIO $ filterM (\ldoc -> do
-                                    doc <- liftLIO $ unlabel ldoc 
+                                    doc <- liftLIO $ powerUnlabel ldoc 
                                     return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
                                  alldocs
     (Just lpdoc) <- trace "140" $ liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
     liftLIO $ withTaskPolicyModule $ addNotifs memDocs ("You were added to a new project: " ++ ("title" `at` project) ++ " by " ++ (T.unpack $ fromJust user)) lpdoc
     alldocs' <- trace "addNotifs succeeded" $ liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
     memDocs' <- trace "143" $ liftLIO $ filterM (\ldoc -> do
-                                    doc <- liftLIO $ unlabel ldoc 
+                                    doc <- liftLIO $ powerUnlabel ldoc 
                                     return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
                                  alldocs'
     trace "147" $ liftLIO $ withTaskPolicyModule $ addProjects memDocs' pid
@@ -156,14 +156,14 @@ server = mkRouter $ do
     let pid = read (S8.unpack sid) :: ObjectId
     mpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
     let lpdoc = fromJust mpdoc
-    proj <- (liftLIO $ unlabel $ fromJust mpdoc) >>= fromDocument
+    proj <- (liftLIO $ powerUnlabel $ fromJust mpdoc) >>= fromDocument
     alludocs <- liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
     alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
 
     let allnames = map (\doc -> "name" `at` doc) alldocs
     let members = projectMembers proj
     memDocs <- liftLIO $ filterM (\ldoc -> do
-                                    doc <- liftLIO $ unlabel ldoc 
+                                    doc <- liftLIO $ powerUnlabel ldoc 
                                     return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
                                  alludocs
     liftLIO $ withTaskPolicyModule $ addNotifs memDocs ((T.unpack user) ++ " edited a project: " ++ (projectTitle proj)) lpdoc
@@ -175,11 +175,11 @@ server = mkRouter $ do
     let pid = read (S8.unpack sid) :: ObjectId
     mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
     let lpdoc = fromJust mlpdoc
-    pdoc <- liftLIO $ unlabel lpdoc
+    pdoc <- liftLIO $ powerUnlabel lpdoc
     let projmembers = "members" `at` pdoc
     alldocs <- liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
     memDocs <- liftLIO $ filterM (\ldoc -> do
-                                    doc <- liftLIO $ unlabel ldoc 
+                                    doc <- liftLIO $ powerUnlabel ldoc 
                                     return (("name" `at` doc) `elem` projmembers) :: LIO DCLabel Bool)
                                  alldocs
     liftLIO $ withTaskPolicyModule $ addNotifs memDocs (T.unpack user ++ " removed a project: " ++ ("title" `at` pdoc)) lpdoc
@@ -191,7 +191,7 @@ server = mkRouter $ do
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
     mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
-    pdoc <- liftLIO $ unlabel $ fromJust mlpdoc
+    pdoc <- liftLIO $ powerUnlabel $ fromJust mlpdoc
     let oldmems = "members" `at` pdoc
     let oldleads = "leaders" `at` pdoc
     let newmems = filter (\m -> m /= user) oldmems
@@ -199,7 +199,7 @@ server = mkRouter $ do
     let newdoc = merge ["members" -: newmems, "leaders" -: newleads] pdoc
     liftLIO $ withTaskPolicyModule $ save "projects" newdoc
     mludoc <- liftLIO $ withTaskPolicyModule $ findOne $ select [ "name" -: user ] "users"
-    udoc <- liftLIO $ unlabel $ fromJust mludoc 
+    udoc <- liftLIO $ powerUnlabel $ fromJust mludoc 
     let oldprojs = "projects" `at` udoc
     let newprojs = filter (\p -> p /= pid) oldprojs
     let newdoc = merge ["projects" -: newprojs] udoc
@@ -214,10 +214,10 @@ server = mkRouter $ do
     (Just sid) <- queryParam "tid"
     let tid = read (S8.unpack sid) :: ObjectId
     mltdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: tid] "tasks"
-    tdoc <- liftLIO $ unlabel $ fromJust mltdoc
+    tdoc <- liftLIO $ powerUnlabel $ fromJust mltdoc
     let projId = read ("project" `at` tdoc) :: ObjectId
     mlproj <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: (projId :: ObjectId)] "projects"
-    proj <- liftLIO $ unlabel $ fromJust mlproj
+    proj <- liftLIO $ powerUnlabel $ fromJust mlproj
     let tasks = trace ("old task length: " ++ (show $ length (("tasks" `at` proj) :: [ObjectId]))) $ filter (\t -> t /= tid) ("tasks" `at` proj)
     let newProj = trace ("new tasks length: " ++ (show $ length tasks)) $ merge ["tasks" -: tasks] proj
     liftLIO $ withTaskPolicyModule $ save "projects" newProj
@@ -230,18 +230,18 @@ server = mkRouter $ do
     let completed  = ["completed" -: ("True" :: String)]
     mltdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: tid] "tasks" 
     let ltdoc = fromJust mltdoc
-    tdoc <- liftLIO $ unlabel $ fromJust mltdoc
+    tdoc <- liftLIO $ powerUnlabel $ fromJust mltdoc
     let newtdoc = merge completed tdoc
     let members = ("members" `at` tdoc :: [UserName])
     allusers <- liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
     --let memDocs = allusers
     memDocs <- liftLIO $ filterM (\ldoc -> do
-                                    doc <- liftLIO $ unlabel ldoc 
+                                    doc <- liftLIO $ powerUnlabel ldoc 
                                     return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
                                  allusers
     let projId = read ("project" `at` tdoc) :: ObjectId
     mlproj <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: (projId :: ObjectId)] "projects"
-    proj <- liftLIO $ unlabel $ fromJust mlproj
+    proj <- liftLIO $ powerUnlabel $ fromJust mlproj
     liftLIO $ withTaskPolicyModule $ addNotifs memDocs (("A task was marked as completed: " ++ ("name" `at` tdoc) ++ " in the project: " ++ ("title" `at` proj)) :: String) ltdoc
     
     liftLIO $ withTaskPolicyModule $ save "tasks" newtdoc
@@ -255,27 +255,27 @@ server = mkRouter $ do
         respJSON403 msg = Response status403 [(hContentType, ctype)] $
                            L8.pack $ "{ \"error\" : " ++
                                        show (msg :: String) ++ "}"
-    taskdoc <- include ["name", "members", "project", "completed", "priority"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
+    taskdoc <- include ["name", "members", "project", "completed", "priority"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. powerUnlabel))
     let members = ("members" `at` taskdoc)
     let task = merge ["members" -: (members :: [String])] taskdoc 
-    task' <- fromDocument task
-    tid <- liftLIO $ withTaskPolicyModule $ insertTask task' 
+    --task' <- fromDocument task
+    tid <- liftLIO $ withTaskPolicyModule $ insertTask task 
     mlpdoc <- liftLIO $ trace "insert success" $ withTaskPolicyModule $ findOne $ select [ "_id" -: pid ] "projects"
-    pdoc <- liftLIO $ unlabel $ trace "253" $ fromJust mlpdoc
+    pdoc <- liftLIO $ powerUnlabel $ trace "253" $ fromJust mlpdoc
     let curTasks = trace "254" $ "tasks" `at` pdoc
     let newTasks = tid:curTasks
     let newDoc = merge ["tasks" -: newTasks] pdoc
     alludocs <- liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
     memDocs <- liftLIO $ filterM (\ldoc -> do
-                                    doc <- liftLIO $ unlabel ldoc 
+                                    doc <- liftLIO $ powerUnlabel ldoc 
                                     return (("name" `at` doc) `elem` members) :: LIO DCLabel Bool)
                                  alludocs
-    --alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"  -- unlabeled version
-    --let unlabeledmemDocs = filter (\u -> ("name" `at` u) `elem` members) alldocs
+    --alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"  -- powerUnlabeled version
+    --let powerUnlabeledmemDocs = filter (\u -> ("name" `at` u) `elem` members) alldocs
     (Just ltdoc) <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: tid] "tasks"
     liftLIO $ withTaskPolicyModule $ trace "264" $ do
-      proj <- fromDocument newDoc
-      updateProject proj
+      --proj <- fromDocument newDoc
+      updateProject newDoc
       liftLIO $ trace "addTasks successful" $ withTaskPolicyModule $ addNotifs memDocs (("You were assigned a task: " ++ ("name" `at` task) ++ " in the project: " ++ ("title" `at` pdoc)) :: String) ltdoc
     respond $ redirectTo ("/projects/" ++ show pid)   
 
@@ -284,7 +284,7 @@ server = mkRouter $ do
 
   -- Add a new user
   post "/people" $ do
-    userdoc <- include ["name"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO . unlabel))
+    userdoc <- include ["name"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO . powerUnlabel))
     let usrdoc = merge [ "notifs" -: ([] :: [String])
                        , "projects" -: ([] :: [ObjectId]) ] userdoc
     liftLIO $ withTaskPolicyModule $ insert "users" usrdoc
@@ -306,7 +306,7 @@ server = mkRouter $ do
                                        show (msg :: String) ++ "}"
     let index = read (S8.unpack ind) :: Int
     mluserdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
-    userdoc <- liftLIO $ unlabel $ fromJust mluserdoc
+    userdoc <- liftLIO $ powerUnlabel $ fromJust mluserdoc
     let oldnotifs = "notifs" `at` userdoc :: [String]
     let newnotifs = (take (index) oldnotifs ++ drop (index + 1) oldnotifs) -- remove the notification at the given index
     let newdoc = trace ("new notifs: " ++ show newnotifs ++ " old notifs: " ++ show oldnotifs) $ merge ["notifs" -: newnotifs] userdoc
@@ -325,7 +325,7 @@ server = mkRouter $ do
                            L8.pack $ "{ \"error\" : " ++
                                        show (msg :: String) ++ "}"
     mluserdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
-    userdoc <- liftLIO $ unlabel $ fromJust mluserdoc
+    userdoc <- liftLIO $ powerUnlabel $ fromJust mluserdoc
     let newdoc = merge ["notifs" -: ([] :: [String])] userdoc
     liftLIO $ withTaskPolicyModule $ save "users" newdoc
     matype <- requestHeader "accept"
@@ -355,7 +355,7 @@ commentController = do
         respJSON403 msg = Response status403 [(hContentType, ctype)] $
                            L8.pack $ "{ \"error\" : " ++
                                        show (msg :: String) ++ "}"
-    doc <- include ["_id", "author", "proj", "text", "parent"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
+    doc <- include ["_id", "author", "proj", "text", "parent"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. powerUnlabel))
     sid <- lookup "_id" doc
     let cid = read sid :: ObjectId
     let newdoc = merge [ "_id" -: cid ] doc
@@ -399,7 +399,7 @@ removeProj users proj = do
     else do
       let user = head users
       userdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
-      u <- liftLIO $ unlabel $ fromJust userdoc
+      u <- liftLIO $ powerUnlabel $ fromJust userdoc
       projs <- lookup "projects" u
       let newprojs = filter (/= proj) projs
       let newdoc = merge ["projects" -: newprojs] u
@@ -428,6 +428,6 @@ findAll q = do
               case mldoc of
                 Nothing -> return list
                 Just ldoc -> do
-                        doc <- liftLIO $ unlabel ldoc
+                        doc <- liftLIO $ powerUnlabel ldoc
                         getAll cur (list ++ [doc])
 
