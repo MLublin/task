@@ -38,6 +38,8 @@ import Task.Views
 
 server :: Application
 server = mkRouter $ do
+  priv <- appPriv
+
   routeVar "pid" $ do
     routeName "comments" commentController
  
@@ -76,7 +78,7 @@ server = mkRouter $ do
                         , "_id" -: pid
                         , "tasks" -: (("tasks" `at` oldproj) :: [ObjectId]) ]
                         pdoc 
-    liftLIO $ withTaskPolicyModule $ save "projects" project
+    liftLIO $ withTaskPolicyModule $ saveP priv "projects" project
     alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
     let memDocs = filter (\u -> ("name" `at` u) `elem` members) alldocs
     liftLIO $ withTaskPolicyModule $ addProjects memDocs pid
@@ -115,7 +117,7 @@ server = mkRouter $ do
                         , "leaders" -: (leaders :: [String])
                         , "tasks" -: ([] :: [ObjectId])]
                         pdoc 
-    pid <- liftLIO $ withTaskPolicyModule $ insert "projects" project
+    pid <- liftLIO $ withTaskPolicyModule $ insertP priv "projects" project
     alldocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
     let memDocs = filter (\doc -> ("name" `at` doc) `elem` members) alldocs 
     liftLIO $ withTaskPolicyModule $ addProjects memDocs pid
@@ -160,13 +162,13 @@ server = mkRouter $ do
     let newmems = filter (\m -> m /= user) oldmems
     let newleads = filter (\m -> m /= user) oldleads
     let newdoc = merge ["members" -: newmems, "leaders" -: newleads] pdoc
-    liftLIO $ withTaskPolicyModule $ save "projects" newdoc
+    liftLIO $ withTaskPolicyModule $ saveP priv "projects" newdoc
     mludoc <- liftLIO $ withTaskPolicyModule $ findOne $ select [ "name" -: user ] "users"
     udoc <- liftLIO $ unlabel $ fromJust mludoc 
     let oldprojs = "projects" `at` udoc
     let newprojs = filter (\p -> p /= pid) oldprojs
     let newdoc = merge ["projects" -: newprojs] udoc
-    liftLIO $ withTaskPolicyModule $ save "users" newdoc
+    liftLIO $ withTaskPolicyModule $ saveP priv "users" newdoc
     respond $ redirectTo "/"
 
 
@@ -183,7 +185,7 @@ server = mkRouter $ do
     proj <- liftLIO $ unlabel $ fromJust mlproj
     let tasks = trace ("old task length: " ++ (show $ length (("tasks" `at` proj) :: [ObjectId]))) $ filter (\t -> t /= tid) ("tasks" `at` proj)
     let newProj = trace ("new tasks length: " ++ (show $ length tasks)) $ merge ["tasks" -: tasks] proj
-    liftLIO $ withTaskPolicyModule $ save "projects" newProj
+    liftLIO $ withTaskPolicyModule $ saveP priv "projects" newProj
     redirectBack
 
   -- Mark a task as completed
@@ -201,7 +203,7 @@ server = mkRouter $ do
     mlproj <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: (projId :: ObjectId)] "projects"
     proj <- liftLIO $ unlabel $ fromJust mlproj
     liftLIO $ withTaskPolicyModule $ addNotifs memdocs (("A task was marked as completed: " ++ ("name" `at` tdoc) ++ " in the project: " ++ ("title" `at` proj)) :: String)
-    liftLIO $ withTaskPolicyModule $ save "tasks" newtdoc
+    liftLIO $ withTaskPolicyModule $ saveP priv "tasks" newtdoc
     redirectBack
 
   -- Process a new task
@@ -215,7 +217,7 @@ server = mkRouter $ do
     taskdoc <- include ["name", "members", "project", "completed", "priority"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabel))
     let members = ("members" `at` taskdoc)
     let task = merge ["members" -: (members :: [String])] taskdoc 
-    tid <- liftLIO $ withTaskPolicyModule $ insert "tasks" task
+    tid <- liftLIO $ withTaskPolicyModule $ insertP priv "tasks" task
     mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select [ "_id" -: pid ] "projects"
     pdoc <- liftLIO $ unlabel $ fromJust mlpdoc
     let curTasks = "tasks" `at` pdoc
@@ -224,7 +226,7 @@ server = mkRouter $ do
     alludocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
     let memDocs = filter (\u -> ("name" `at` u) `elem` members) alludocs
     liftLIO $ withTaskPolicyModule $ do
-      save "projects" newDoc
+      saveP priv "projects" newDoc
       addTasks memDocs tid
       liftLIO $ withTaskPolicyModule $ addNotifs memDocs (("You were assigned a task: " ++ ("name" `at` task) ++ " in the project: " ++ ("title" `at` pdoc)) :: String)
     respond $ redirectTo ("/projects/" ++ show pid)   
@@ -238,7 +240,7 @@ server = mkRouter $ do
     let usrdoc = merge [ "tasks"    -: ([] :: [ObjectId])
                        , "notifs" -: ([] :: [String])
                        , "projects" -: ([] :: [ObjectId]) ] userdoc
-    liftLIO $ withTaskPolicyModule $ insert "users" usrdoc
+    liftLIO $ withTaskPolicyModule $ insertP priv "users" usrdoc
     respond $ redirectTo "/"
  
   -- Show all users
@@ -261,7 +263,7 @@ server = mkRouter $ do
     let oldnotifs = "notifs" `at` userdoc :: [String]
     let newnotifs = (take (index) oldnotifs ++ drop (index + 1) oldnotifs) -- remove the notification at the given index
     let newdoc = trace ("new notifs: " ++ show newnotifs ++ " old notifs: " ++ show oldnotifs) $ merge ["notifs" -: newnotifs] userdoc
-    liftLIO $ withTaskPolicyModule $ save "users" newdoc
+    liftLIO $ withTaskPolicyModule $ saveP priv "users" newdoc
     matype <- requestHeader "accept"
     case matype of
       Just atype | "application/json" `S8.isInfixOf` atype ->
@@ -278,7 +280,7 @@ server = mkRouter $ do
     mluserdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["name" -: user] "users"
     userdoc <- liftLIO $ unlabel $ fromJust mluserdoc
     let newdoc = merge ["notifs" -: ([] :: [String])] userdoc
-    liftLIO $ withTaskPolicyModule $ save "users" newdoc
+    liftLIO $ withTaskPolicyModule $ saveP priv "users" newdoc
     matype <- requestHeader "accept"
     case matype of
       Just atype | "application/json" `S8.isInfixOf` atype ->
@@ -298,7 +300,7 @@ commentController = do
                            L8.pack $ "{ \"error\" : " ++
                                        show (msg :: String) ++ "}"
     ldoc <- request >>= labeledRequestToHson
-    liftLIO . withTaskPolicyModule $ insert "comments" ldoc
+    liftLIO . withTaskPolicyModule $ insertP priv "comments" ldoc
     indexComs user
 
   REST.update $ withUserOrDoAuth $ \user -> trace "update" $ do
@@ -310,7 +312,7 @@ commentController = do
     sid <- lookup "_id" doc
     let cid = read sid :: ObjectId
     let newdoc = merge [ "_id" -: cid ] doc
-    liftLIO $ withTaskPolicyModule $ save "comments" newdoc
+    liftLIO $ withTaskPolicyModule $ saveP priv "comments" newdoc
     indexComs user
 
 indexComs username = do
@@ -337,7 +339,7 @@ addNotifs memDocs notif = do
       let curNotifs = "notifs" `at` doc
       let newNotifs = notif:curNotifs
       let newDoc = merge ["notifs" -: newNotifs] doc
-      save "users" newDoc
+      saveP priv "users" newDoc
       addNotifs (tail memDocs) notif
 
 -- Modifies the database by adding the second argument taskId to each user document's "tasks" field
@@ -350,7 +352,7 @@ addTasks memDocs taskId = do
       let curTasks = "tasks" `at` doc
       let newTasks = taskId:curTasks
       let newDoc = merge ["tasks" -: newTasks] doc
-      save "users" newDoc
+      saveP priv "users" newDoc
       addTasks (tail memDocs) taskId
 
 -- Modifies the database by adding the second argument pId to each user document's "projects" field
@@ -365,7 +367,7 @@ addProjects memDocs pId = do
       else do 
         let newProjects = pId:curProjects
         let newDoc = merge ["projects" -: newProjects] doc
-        save "users" newDoc
+        saveP priv "users" newDoc
         addProjects (tail memDocs) pId
 
 -- Modifies the database by removing the second argument proj from each uer document's "projects" field
@@ -380,7 +382,7 @@ removeProj users proj = do
       projs <- lookup "projects" u
       let newprojs = filter (/= proj) projs
       let newdoc = merge ["projects" -: newprojs] u
-      liftLIO $ withTaskPolicyModule $ save "users" newdoc
+      liftLIO $ withTaskPolicyModule $ saveP priv "users" newdoc
       removeProj (tail users) proj
 
 -- Returns a list of all documents in the database satisfying the Query
