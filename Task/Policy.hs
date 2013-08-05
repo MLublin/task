@@ -113,10 +113,10 @@ withTaskPolicyModule act = withPolicyModule (\(_ :: TaskPolicyModule) -> act)
 findOneProj pid = do
     return liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
 
-updateDB :: HsonDocument -> CollectionName -> DBAction ()
-updateDB doc cname = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> trace "saving" $ do
-  saveP pmpriv cname doc
-  trace "save success " $ return ()
+--updateDB :: Labeled l (DCRecord a) => a -> DBAction ()
+updateDB record = liftLIO $ withPolicyModule $ \(TaskPolicyModuleTCB pmpriv) -> trace "saving" $ do
+  saveLabeledRecordP pmpriv record
+  --trace "save success " $ return ()
 
 
 -- Modifies the database by adding the second argument pId to each user document's "projects" field
@@ -155,6 +155,8 @@ addNotifs lmemdocs notif ldoc = liftLIO $ withPolicyModule $ \(TaskPolicyModuleT
     let newDoc = trace ("new notifs: " ++ show newNotifs) $ merge ["notifs" -: newNotifs] doc
     trace ("new document: " ++ show newDoc) $ saveP pmpriv "users" newDoc
     addNotifs (tail lmemdocs) notif ldoc
+
+
     
 
 instance Groups TaskPolicyModule where
@@ -202,6 +204,7 @@ findWhereWithGroupP p query  = liftDB $ do
     _ -> return Nothing
 
 instance DCRecord Project where
+  --fromDocument :: Document -> DCLabeled Project
   fromDocument doc = do
     let pid = trace "pid lookup" $ lookupObjId "_id" doc
     title <- trace "title lookup" $ lookup "title" doc

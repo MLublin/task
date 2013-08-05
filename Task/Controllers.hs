@@ -77,7 +77,9 @@ server = mkRouter $ do
                         , "_id" -: pid
                         , "tasks" -: (("tasks" `at` oldproj) :: [ObjectId]) ]
                         pdoc 
-    liftLIO $ withTaskPolicyModule $ updateDB project "projects"
+    --liftLIO $ withTaskPolicyModule $ updateDB project "projects"
+    proj <- fromDocument project :: DCLabeled Project
+    liftLIO $ withTaskPolicyModule $ updateDB proj
     alldocs <- liftLIO $ withTaskPolicyModule $ findAllL $ select [] "users"
     memDocs <- liftLIO $ filterM (\ldoc -> do
                                     doc <- liftLIO $ powerUnlabel ldoc 
@@ -93,7 +95,8 @@ server = mkRouter $ do
       let projs = "projects" `at` memdoc
       let newprojs = filter (\p -> p /= pid) projs
       let newdoc = merge ["projects" -: newprojs] memdoc
-      liftLIO $ withTaskPolicyModule $ updateDB memdoc "users"  
+      mem <- fromDocument memdoc
+      liftLIO $ withTaskPolicyModule $ updateDB mem
     respond $ redirectTo ("/projects/" ++ show pid)
     
   -- Display the Project Page  
@@ -256,6 +259,7 @@ server = mkRouter $ do
                            L8.pack $ "{ \"error\" : " ++
                                        show (msg :: String) ++ "}"
     taskdoc <- include ["name", "members", "project", "completed", "priority"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. powerUnlabel))
+    ldoc <- request >>= labeledRequestToHson  -- Labeled Document (entire thing)
     let members = ("members" `at` taskdoc)
     let task = merge ["members" -: (members :: [String])] taskdoc 
     --task' <- fromDocument task
@@ -274,8 +278,8 @@ server = mkRouter $ do
     --let powerUnlabeledmemDocs = filter (\u -> ("name" `at` u) `elem` members) alldocs
     (Just ltdoc) <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: tid] "tasks"
     liftLIO $ withTaskPolicyModule $ trace "264" $ do
-      --proj <- fromDocument newDoc
-      updateDB newDoc "projects"
+      proj <- fromDocument newDoc
+      updateDB proj
       liftLIO $ trace "addTasks successful" $ withTaskPolicyModule $ addNotifs memDocs (("You were assigned a task: " ++ ("name" `at` task) ++ " in the project: " ++ ("title" `at` pdoc)) :: String) ltdoc
     respond $ redirectTo ("/projects/" ++ show pid)   
 
