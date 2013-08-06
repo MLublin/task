@@ -75,6 +75,7 @@ instance DCRecord Task where
 
   recordCollection _ = "tasks"
 
+  findWhereP = findWhereWithGroupP
 
 data User = User {
   userId :: Maybe ObjectId,
@@ -119,6 +120,8 @@ instance DCRecord User where
     , "projects" -: userProjects u]
 
   recordCollection _ = "tasks"
+
+
 
 
 data Project = Project {
@@ -166,6 +169,9 @@ instance DCRecord Project where
     , "desc" -: projectDesc t ]
 
   recordCollection _ = "projects"
+
+  findWhereP = findWhereWithGroupP
+
 
 
 -- Comments ----
