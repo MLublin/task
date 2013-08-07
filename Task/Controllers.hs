@@ -154,6 +154,9 @@ server = mkRouter $ do
   -- Remove a project and redirect to home page
   post "/projects/:pid/remove" $ withUserOrDoAuth $ \user -> do
     priv <- appPriv
+    liftLIO $ do
+      clr <- getClearance
+      setClearanceP priv $ (priv %% True) `lub` clr
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
     mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
@@ -168,6 +171,9 @@ server = mkRouter $ do
   -- Allow user to leave a project and redirect to home page
   post "/projects/:pid/leave" $ withUserOrDoAuth $ \user -> do
     priv <- appPriv
+    liftLIO $ do
+      clr <- getClearance
+      setClearanceP priv $ (priv %% True) `lub` clr
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
     mlpdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
@@ -200,6 +206,9 @@ server = mkRouter $ do
   -- Remove task from database
   post "/tasks/:tid/remove" $ do
     priv <- appPriv
+    liftLIO $ do
+      clr <- getClearance
+      setClearanceP priv $ (priv %% True) `lub` clr
     (Just sid) <- queryParam "tid"
     let tid = read (S8.unpack sid) :: ObjectId
     mltdoc <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: tid] "tasks"
@@ -215,6 +224,9 @@ server = mkRouter $ do
   -- Mark a task as completed
   post "/tasks/:tid/edit" $ do
     priv <- appPriv
+    liftLIO $ do
+      clr <- getClearance
+      setClearanceP priv $ (priv %% True) `lub` clr
     (Just sid) <- queryParam "tid"
     let tid = read (S8.unpack sid) :: ObjectId
     let completed  = ["completed" -: ("True" :: String)]
@@ -234,6 +246,9 @@ server = mkRouter $ do
   -- Process a new task
   post "/projects/:pid/tasks" $ do
     priv <- appPriv
+    liftLIO $ do
+      clr <- getClearance
+      setClearanceP priv $ (priv %% True) `lub` clr
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
     let ctype = "text/json"

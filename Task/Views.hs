@@ -151,7 +151,7 @@ editProject project user allnames  = do
       input ! type_ "text" ! name "title" ! value (toValue $ projectTitle project)
     p $ do
       label ! for "desc" $ "Project description: "
-      textarea ! name "desc" $ "" ! value (toValue $ projectDesc project)
+      textarea ! name "desc" $ toHtml $ projectDesc project
     div ! id "memberSelect" $ do
       p $ "Select members for this project:"
       forM_ allnames $ \member -> do

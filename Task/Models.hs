@@ -119,7 +119,7 @@ instance DCRecord User where
     , "invites" -: userInvites u
     , "projects" -: userProjects u]
 
-  recordCollection _ = "tasks"
+  recordCollection _ = "users"
 
 
 
