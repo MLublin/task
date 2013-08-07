@@ -225,6 +225,8 @@ instance DCRecord Comment where
 
   recordCollection _ = "comments"
 
+  findWhereP = findWhereWithGroupP
+
 lookupObjId :: Monad m => FieldName -> HsonDocument -> m ObjectId
 lookupObjId n d = case lookup n d of
     Just i -> return (i :: ObjectId)

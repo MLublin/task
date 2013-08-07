@@ -74,9 +74,10 @@ instance PolicyModule TaskPolicyModule where
         clearance $ do
           secrecy ==> this
           integrity ==> unrestricted
-        document $ \_ -> do
-          readers ==> unrestricted
-          writers ==> unrestricted
+        document $ \doc -> do
+          let projid = ("#projId=" :: String) ++ (show $ (read ("proj" `at` doc) :: ObjectId)) :: String
+          readers ==> projid \/ this \/ principal "@localhost"
+          writers ==> projid \/ this \/ principal "@localhost"
         field "_id" key
     return $ TaskPolicyModuleTCB priv
         where this = privDesc priv 

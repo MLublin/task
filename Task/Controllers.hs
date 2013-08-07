@@ -340,6 +340,9 @@ commentController = do
 
   REST.create $ withUserOrDoAuth $ \user -> trace "create" $ do
     priv <- appPriv
+    liftLIO $ do
+      clr <- getClearance
+      setClearanceP priv $ (priv %% True) `lub` clr
     let ctype = "text/json"
         respJSON403 msg = Response status403 [(hContentType, ctype)] $
                            L8.pack $ "{ \"error\" : " ++
@@ -350,6 +353,9 @@ commentController = do
 
   REST.update $ withUserOrDoAuth $ \user -> trace "update" $ do
     priv <- appPriv
+    liftLIO $ do
+      clr <- getClearance
+      setClearanceP priv $ (priv %% True) `lub` clr
     let ctype = "text/json"
         respJSON403 msg = Response status403 [(hContentType, ctype)] $
                            L8.pack $ "{ \"error\" : " ++
@@ -362,10 +368,14 @@ commentController = do
     indexComs user
 
 indexComs username = do
+  priv <- appPriv
+  liftLIO $ do
+      clr <- getClearance
+      setClearanceP priv $ (priv %% True) `lub` clr
   sid <- queryParam "pid"
   let str = S8.unpack $ fromJust sid  -- proj id as a string
   let pid = read str -- proj id as an ObjectId
-  comments <- liftLIO . withTaskPolicyModule $ D.findAll $ select [] "comments" 
+  comments <- liftLIO . withTaskPolicyModule $ D.findAllP priv $ select [] "comments" 
   matype <- requestHeader "accept"
   case matype of
     Just atype | "application/json" `S8.isInfixOf` atype ->
