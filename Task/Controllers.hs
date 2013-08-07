@@ -71,6 +71,9 @@ server = mkRouter $ do
   -- Process the information for an edited project
   post "/projects/edit" $ do
     priv <- appPriv
+    liftLIO $ do
+      clr <- getClearance
+      setClearanceP priv $ (priv %% True) `lub` clr
     pdoc <- include ["_id", "title", "desc", "members", "completed", "startTime", "endTime", "leaders"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabelP priv))
     let pid = read (drop 5 $ at "_id" pdoc) :: ObjectId
     mloldproj <- liftLIO $ withTaskPolicyModule $ findOne $ select ["_id" -: pid] "projects"
@@ -174,21 +177,21 @@ server = mkRouter $ do
     let newmems = filter (\m -> m /= user) oldmems
     let newleads = filter (\m -> m /= user) oldleads
     let newdoc = merge ["members" -: newmems, "leaders" -: newleads] pdoc
-    newRec <- fromDocument newdoc 
-    req <- request
-    lnewRec <- liftLIO $ label (labelOf req) (newRec :: Project)
-    liftLIO $ withTaskPolicyModule $ saveLabeledRecordP priv (lnewRec :: DCLabeled Project)
-    --liftLIO $ withTaskPolicyModule $ saveP priv "projects" newdoc
+    --newRec <- fromDocument newdoc 
+    --req <- request
+    --lnewRec <- liftLIO $ label (labelOf req) (newRec :: Project)
+    --liftLIO $ withTaskPolicyModule $ saveLabeledRecordP priv (lnewRec :: DCLabeled Project)
+    liftLIO $ withTaskPolicyModule $ saveP priv "projects" newdoc
     mludoc <- liftLIO $ withTaskPolicyModule $ findOne $ select [ "name" -: user ] "users"
     udoc <- liftLIO $ unlabelP priv $ fromJust mludoc 
     let oldprojs = "projects" `at` udoc
     let newprojs = filter (\p -> p /= pid) oldprojs
     let newdoc = merge ["projects" -: newprojs] udoc
-    newRec <- fromDocument newdoc 
-    req <- request
-    lnewRec <- liftLIO $ label (labelOf req) (newRec :: User)
-    liftLIO $ withTaskPolicyModule $ saveLabeledRecordP priv lnewRec
-    --liftLIO $ withTaskPolicyModule $ saveP priv "users" newdoc
+    --newRec <- fromDocument newdoc 
+    --req <- request
+    --lnewRec <- liftLIO $ label (labelOf req) (newRec :: User)
+    --liftLIO $ withTaskPolicyModule $ saveLabeledRecordP priv lnewRec
+    liftLIO $ withTaskPolicyModule $ saveP priv "users" newdoc
     respond $ redirectTo "/"
 
 
