@@ -425,4 +425,3 @@ findAll q = do
                 Just ldoc -> do
                         doc <- liftLIO $ unlabel ldoc
                         getAll cur (list ++ [doc])
-
