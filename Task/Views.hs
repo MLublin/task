@@ -46,10 +46,14 @@ displayHomePage user projects notifs = do
   div ! class_ "row-fluid" $ do
     div ! class_ "span4" ! id "left" $ do
       div ! id "projects" $ do
+        if (projects == [])
+          then ""
+          else h2 $ "My Projects"
         let unfinished = filter (not . projectCompleted) projects
         if (unfinished == []) 
           then ""
           else do 
+            h4 $ "In Progress"
             ul $ forM_ unfinished $ \proj -> do
               let pid = show $ fromJust $ projectId proj
               li $ a ! href (toValue ("/projects/" ++ pid)) $ toHtml (projectTitle proj)
@@ -57,7 +61,8 @@ displayHomePage user projects notifs = do
         if (finished == [])
           then ""
           else do 
-            h2 $ "Completed Projects"
+            br
+            h4 $ "Completed"
             ul $ forM_ finished $ \proj -> do
               let pid = show $ fromJust $ projectId proj
               li $ a ! href (toValue ("/projects/" ++ pid)) $ toHtml (projectTitle proj)
@@ -403,7 +408,7 @@ respondHtml ctitle content = okHtml $ renderHtml $ docTypeHtml $ do
     div ! class_ "navbar navbar-fixed-top navbar-inverse" ! id "page-nav" $ do
       div ! class_ "navbar-inner" $ do
         div ! class_ "container-fluid" $ do
-          a ! href "/" ! class_ "brand" $ "Home" 
+          a ! href "/" ! class_ "brand" $ "Taskell" 
     script ! src "/static/js/jquery.js" $ ""
     script ! src "/static/js/bootstrap.js" $ ""
     script ! src "http://code.jquery.com/jquery-latest.min.js" $ ""
@@ -438,11 +443,12 @@ respondHtmlC ctitle content = okHtml $ renderHtml $ docTypeHtml $ do
 headL :: [a] -> a
 headL (x:_) =  x
 
+-- Turn the list of users into a comma-separated string
 showStr :: [UserName] -> String -> String
 showStr list str = 
   if list == []
     then drop 1 str
     else  
       let name = T.unpack $ headL list
-      in showStr (tail list) (" " ++ name ++ str)
+      in showStr (tail list) (", " ++ name ++ str)
 
