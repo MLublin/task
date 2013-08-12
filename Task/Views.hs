@@ -41,14 +41,14 @@ import Task.Models
 displayHomePage :: UserName -> [Project] -> [String] -> Html
 displayHomePage user projects notifs = do
   div ! class_ "welcome" $ do
-   h2 $ toHtml $ "Welcome " ++ T.unpack user
-   a ! href "/projects/new" ! id "create-project" $ "Create new project"
+    h2 $ toHtml $ "Welcome, " ++ T.unpack user
   div ! class_ "row-fluid" $ do
     div ! class_ "span4" ! id "left" $ do
       div ! id "projects" $ do
         if (projects == [])
           then ""
           else h2 $ "My Projects"
+        a ! href "/projects/new" ! id "create-project" $ "Create new project"
         let unfinished = filter (not . projectCompleted) projects
         if (unfinished == []) 
           then ""

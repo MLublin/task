@@ -134,7 +134,7 @@ server = mkRouter $ do
       addProjects memDocs pid priv
       modifieddocs <- findAll $ select [] "users"
       let modifiedMemDocs = filter (\doc -> ("name" `at` doc) `elem` members) modifieddocs 
-      addNotifs modifiedMemDocs ("You were added to a new project: " ++ ("title" `at` project) ++ " by " ++ (T.unpack $ fromJust user)) priv
+      addNotifs modifiedMemDocs ("You were added to a new project: \"" ++ ("title" `at` project) ++ "\" by " ++ (T.unpack $ fromJust user)) priv
     respond $ redirectTo ("/projects/" ++ show pid)
 
   -- Display the Edit Project page
@@ -147,7 +147,7 @@ server = mkRouter $ do
     alludocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
     let allnames = map (\doc -> "name" `at` doc) alludocs
     let memDocs = filter (\u -> ("name" `at` u) `elem` (projectMembers proj)) alludocs
-    liftLIO $ withTaskPolicyModule $ addNotifs memDocs ((T.unpack user) ++ " edited a project: " ++ (projectTitle proj)) priv
+    liftLIO $ withTaskPolicyModule $ addNotifs memDocs ((T.unpack user) ++ " edited the project \"" ++ (projectTitle proj) ++ "\"") priv
     respond $ respondHtml "Edit" $ editProject proj user allnames
   
   -- Remove a project and redirect to home page
@@ -164,7 +164,7 @@ server = mkRouter $ do
     liftLIO $ withTaskPolicyModule $ do
       alldocs <- findAll $ select [] "users"
       let memDocs = trace (show alldocs) $ filter (\u -> ("name" `at` u) `elem` projmembers) alldocs
-      addNotifs memDocs (T.unpack user ++ " removed a project: " ++ ("title" `at` pdoc)) priv
+      addNotifs memDocs (T.unpack user ++ " removed the project \"" ++ ("title" `at` pdoc) ++ "\"") priv
       removeProj projmembers pid priv
     respond $ redirectTo "/"
 
@@ -258,7 +258,7 @@ server = mkRouter $ do
       let memDocs = filter (\u -> ("name" `at` u) `elem` members) alludocs
       saveP priv "projects" newDoc
       addTasks memDocs tid priv
-      addNotifs memDocs (("You were assigned a task: " ++ ("name" `at` task) ++ " in the project: " ++ ("title" `at` pdoc)) :: String) priv
+      addNotifs memDocs (("You were assigned a task: \"" ++ ("name" `at` task) ++ "\" in the project \"" ++ ("title" `at` pdoc) ++ "\"") :: String) priv
     respond $ redirectTo ("/projects/" ++ show pid)   
 
 
@@ -426,3 +426,4 @@ findAll q = do
                 Just ldoc -> do
                         doc <- liftLIO $ unlabel ldoc
                         getAll cur (list ++ [doc])
+
