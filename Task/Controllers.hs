@@ -64,7 +64,7 @@ server = mkRouter $ do
     allUserdocs <- liftLIO $ withTaskPolicyModule $ findAll $ select [] "users"
     allUsers <- mapM (\ud -> fromDocument ud) allUserdocs
     let allUserNames = map (\u -> userName u) allUsers
-    respond $ respondHtml "newProject" $ newProject user allUserNames 
+    respond $ respondHtml "Create New Project" $ newProject user allUserNames 
 
   -- Process the information for an edited project
   post "/projects/edit" $ do
@@ -244,7 +244,7 @@ server = mkRouter $ do
       setClearanceP priv $ (priv %% True) `lub` clr
     (Just sid) <- queryParam "pid"
     let pid = read (S8.unpack sid) :: ObjectId
-    taskdoc <- include ["name", "members", "project", "completed", "priority"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabelP priv))
+    taskdoc <- include ["name", "members", "project", "completed", "date", "priority"] `liftM` (request >>= labeledRequestToHson >>= (liftLIO. unlabelP priv))
     let members = ("members" `at` taskdoc)
     let task = merge ["members" -: (members :: [String])] taskdoc 
     tid <- liftLIO $ withTaskPolicyModule $ insertP priv "tasks" task

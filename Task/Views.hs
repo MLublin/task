@@ -212,14 +212,18 @@ displayTasks user tasks project = do
           "Members:"
           br
           forM_ (projectMembers project) $ \member -> do
-                              input ! type_ "checkbox" ! class_ "memberCheckbox" ! name "members[]" ! value (toValue member) 
-                              toHtml $ T.unpack member  
+            input ! type_ "checkbox" ! class_ "memberCheckbox" ! name "members[]" ! value (toValue member) 
+            toHtml $ T.unpack member  
         p $ do
           label ! for "priority" $ "Task priority: "
           select ! name "priority" $ do
             option ! value "3" $ "Low"
             option ! value "2" $ "Medium"
             option ! value "1" $ "High"
+        p $ do
+          input ! type_ "hidden" ! name "date" ! value "None"
+          label ! for "date" $ "Due date (optional): "
+          input ! type_ "date" ! name "date"
         input ! type_ "hidden" ! name "project" ! value (toValue pid)
         input ! type_ "hidden" ! name "completed" ! value "False"
         button ! type_ "submit" $ "Add Task"
@@ -275,15 +279,19 @@ showTask :: Task -> Html
 showTask task = do
   let tid = toValue $ show $ fromJust $ taskId task
   li ! id tid ! class_ "taskbullet" $ do
-      let tid = show $ fromJust $ taskId task
-      let fid = toValue ("form" ++ tid)
-      let act = "/tasks/" ++ tid ++ "/edit"
-      form ! id fid ! class_ (toValue ("complete_tasks_form taskp" ++ (taskPriority task))) ! action (toValue act) ! method "post" $ do
-        input ! type_ "hidden" ! name "completed" ! value "True"
-        button ! type_ "submit" $ "X"
-        toHtml (taskName task)
+    let tid = show $ fromJust $ taskId task
+    let fid = toValue ("form" ++ tid)
+    let act = "/tasks/" ++ tid ++ "/edit"
+    let classes = "complete_tasks_form taskp" ++ taskPriority task
+    form ! id fid ! class_ (toValue classes) ! action (toValue act) ! method "post" $ do
+      input ! type_ "hidden" ! name "completed" ! value "True"
+      button ! type_ "submit" $ "X"
+      toHtml (taskName task)
+      br
+      blockquote $ do
+        toHtml ("Members: " ++ (showStr (taskMembers task) ""))
         br
-        blockquote $ toHtml ("Members: " ++ (showStr (taskMembers task) ""))
+        toHtml ("Due date: " ++ taskDate task)
 
 showCompletedTask :: Task -> Html
 showCompletedTask task = do
@@ -296,7 +304,10 @@ showCompletedTask task = do
         button ! type_ "submit" $ "X"
         toHtml (taskName task)
         br
-        blockquote $ toHtml ("Members: " ++ (showStr (taskMembers task) ""))  
+        blockquote $ do
+          toHtml ("Members: " ++ (showStr (taskMembers task) ""))
+          br
+          toHtml ("Due date: " ++ taskDate task)
 
 
 -- Users -----
