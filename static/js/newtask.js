@@ -36,7 +36,8 @@ $(document).ready(function() {
           '<form id="form' + tid + '" class="complete_tasks_form taskp' + newtask.priority +
           '" action="/tasks/' + tid + '/edit" method="post">' + 
           '<button type="submit" > X </button>' + newtask.name + '<br>' +
-          '<blockquote> Members: ' + printArray(newtask.members) + '</blockquote></li>' + 
+          '<blockquote> Members: ' + printArray(newtask.members) + 
+          '<br>Due date: ' + newtask.date + '</blockquote></li>' + 
           '<input type="hidden" name="completed" value="True">' + 
           '</form> </li>').appendTo(destination);
         $(destination).append(html);

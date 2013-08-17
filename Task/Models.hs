@@ -37,16 +37,18 @@ data Task = Task {
   taskMembers :: [UserName],
   taskCompleted :: Bool,
   taskPriority :: String,
+  taskDate :: String,  -- due date
   taskProject :: ObjectId
 } deriving (Show, Eq, Typeable)
 
 instance ToJSON Task where
-  toJSON (Task id name mem com pri proj) =
+  toJSON (Task id name mem com pri date proj) =
     object [ "_id"       .= (show $ fromJust id)
            , "name"      .= name
            , "members"   .= mem
            , "completed" .= com
            , "priority"  .= pri
+           , "date"      .= date
            , "project"   .= show proj
            ]
 
@@ -57,21 +59,24 @@ instance DCRecord Task where
     members <- lookup "members" doc
     completed <- lookup "completed" doc
     priority <- lookup "priority" doc
-    project <- lookup "project" doc
-    return Task { taskId = tid
+    date <- trace "looking up date" $ lookup "date" doc
+    project <- trace "looking up proj" $ lookup "project" doc
+    trace "returning task" $ return Task { taskId = tid
                 , taskName = name
                 , taskMembers = members
                 , taskCompleted = read completed
                 , taskPriority = priority
+                , taskDate = date
                 , taskProject = read project }
 
   toDocument t =
-    [ "_id"  -: taskId t
-    , "name" -: taskName t
-    , "members" -: (taskMembers t :: [UserName])
+    [ "_id"       -: taskId t
+    , "name"      -: taskName t
+    , "members"   -: (taskMembers t :: [UserName])
     , "completed" -: taskCompleted t
-    , "priority" -: taskPriority t
-    , "project" -: taskProject t]
+    , "priority"  -: taskPriority t
+    , "date"      -: taskDate t
+    , "project"   -: taskProject t]
 
   recordCollection _ = "tasks"
 
